@@ -2,6 +2,7 @@ const express = require('express');
 const { supabaseAnon, supabaseAdmin } = require('../lib/supabase');
 const { requireAuth } = require('../middleware/auth');
 const phoneVerification = require('../lib/phoneVerification');
+const { getSignedUrl } = require('../lib/storage');
 
 const router = express.Router();
 
@@ -88,7 +89,9 @@ router.get('/me', requireAuth, async (req, res) => {
 
   if (error) return res.status(500).json({ error: '프로필을 불러오지 못했습니다.' });
 
-  res.json({ user: { id: req.user.id, email: req.user.email }, profile });
+  const verification_video_url = await getSignedUrl('verification-docs', profile.verification_video_path);
+
+  res.json({ user: { id: req.user.id, email: req.user.email }, profile: { ...profile, verification_video_url } });
 });
 
 module.exports = router;

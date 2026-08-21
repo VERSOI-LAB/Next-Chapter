@@ -8,6 +8,8 @@ const journeyRoutes = require('./routes/journeys');
 const applicationRoutes = require('./routes/applications');
 const profileRoutes = require('./routes/profile');
 const adminRoutes = require('./routes/admin');
+const photoRoutes = require('./routes/photos');
+const verificationRoutes = require('./routes/verifications');
 
 const app = express();
 
@@ -19,6 +21,8 @@ app.use('/api/journeys', journeyRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/photos', photoRoutes);
+app.use('/api/verifications', verificationRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

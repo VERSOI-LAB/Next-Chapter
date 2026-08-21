@@ -81,6 +81,53 @@
 .verify-card h3{font-size:14.5px;font-weight:500;margin:0 0 10px;color:var(--ink)}
 .verify-card p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.6}
 
+/* My Page sub-tabs (내 프로필 / 신원검증) */
+.mypage-tabs{display:flex;gap:26px;margin-bottom:34px;border-bottom:1px solid var(--line)}
+.mypage-tabs button{padding:10px 2px;background:none;border:0;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.mypage-tabs button.active{color:var(--ink);border-bottom-color:var(--accent)}
+.mypage-panel{display:none}
+.mypage-panel.active{display:block}
+
+.condition-row{margin-bottom:22px}
+.condition-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.condition-sub{font-size:11px;color:var(--muted);margin:10px 0 6px}
+.condition-row select,.condition-row input[type="text"],.condition-row input[type="number"]{width:100%;padding:12px 14px;border:1px solid var(--line);background:#fff;font:inherit;font-size:14px;color:var(--ink);margin-bottom:8px}
+.range-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.range-row select{margin-bottom:0}
+
+.photo-upload-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.photo-thumb{position:relative;aspect-ratio:3/4;border-radius:8px;overflow:hidden;background:var(--paper2);cursor:pointer}
+.photo-thumb img,.photo-thumb video{width:100%;height:100%;object-fit:cover}
+.photo-thumb.is-rep{outline:2px solid var(--accent);outline-offset:2px}
+.photo-rep-badge{position:absolute;top:6px;left:6px;background:var(--accent);color:#fff;font-size:9px;padding:3px 7px;border-radius:4px;letter-spacing:.05em}
+.photo-remove-btn{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(20,18,16,.65);color:#fff;font-size:13px;cursor:pointer;line-height:1}
+.photo-add-box{aspect-ratio:3/4;border:1px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:26px;background:var(--paper)}
+.photo-upload-hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+
+.autocomplete-wrap{position:relative}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);max-height:220px;overflow-y:auto;z-index:20;box-shadow:0 6px 16px rgba(25,24,23,.08)}
+.autocomplete-item{padding:10px 14px;font-size:13px;cursor:pointer}
+.autocomplete-item:hover{background:var(--paper2)}
+
+.status-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.status-table td{padding:14px 4px;border-bottom:1px solid var(--line)}
+.status-table td:last-child{text-align:right}
+.required-tag{font-size:9px;color:var(--accent);border:1px solid var(--accent);padding:2px 6px;border-radius:3px;margin-left:6px;vertical-align:middle}
+
+.verify-status-badge{display:inline-block;font-size:11px;padding:5px 12px;border-radius:20px;letter-spacing:.02em;border:1px solid transparent}
+.verify-status-badge.verified{background:#eaf3ec;color:#2f6b3c}
+.verify-status-badge.pending{background:#fbf1de;color:#8a6d00}
+.verify-status-badge.not_submitted{background:none;border-color:var(--line);color:var(--muted);cursor:pointer}
+.verify-status-badge.not_submitted:hover{border-color:var(--accent);color:var(--accent)}
+
+.doc-upload-panel{margin-top:16px;padding:20px;background:var(--paper2);border-radius:10px}
+.doc-slot-row{margin-bottom:16px}
+.doc-slot-label{font-size:12px;color:var(--ink);margin-bottom:8px;line-height:1.5}
+.doc-slot-box{border:1px dashed var(--line);border-radius:8px;padding:14px;font-size:12px;color:var(--muted);cursor:pointer;text-align:center;background:#fff}
+.doc-slot-box.has-file{border-style:solid;color:var(--ink)}
+.doc-link{display:block;text-align:right;font-size:11px;color:var(--accent);margin-top:4px;text-decoration:underline}
+.doc-panel-close{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-decoration:underline;background:none;border:0;cursor:pointer;margin-top:6px}
+
 @media(max-width:800px){
   .auth-card{padding:36px 26px}
   .field-row{grid-template-columns:1fr}
@@ -92,4 +139,6 @@
   .verify-right{padding-top:0}
   .verify-cards{grid-template-columns:1fr}
   .verify-media{height:280px}
+  .photo-upload-grid{grid-template-columns:repeat(2,1fr)}
+  .mypage-tabs{gap:18px;overflow-x:auto}
 }

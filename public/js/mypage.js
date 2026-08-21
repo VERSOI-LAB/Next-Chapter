@@ -110,5 +110,24 @@ logoutLink.addEventListener('click', async (e) => {
   window.location.href = 'index.html';
 });
 
+const mypageTabButtons = document.querySelectorAll('.mypage-tabs button');
+const mypagePanels = {
+  account: document.getElementById('panel-account'),
+  profile: document.getElementById('panel-profile'),
+  verification: document.getElementById('panel-verification'),
+};
+
+mypageTabButtons.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    mypageTabButtons.forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    Object.values(mypagePanels).forEach((p) => p.classList.remove('active'));
+    mypagePanels[btn.dataset.tab].classList.add('active');
+
+    if (btn.dataset.tab === 'profile' && typeof initSelfProfile === 'function') initSelfProfile();
+    if (btn.dataset.tab === 'verification' && typeof initVerificationTab === 'function') initVerificationTab();
+  });
+});
+
 loadProfile();
 loadApplications();
