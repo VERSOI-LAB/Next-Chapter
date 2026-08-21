@@ -70,6 +70,16 @@
 
 .empty-state{padding:60px 0;text-align:center;color:var(--muted);font-size:13px}
 
+.verify-grid{display:grid;grid-template-columns:1fr 1.25fr;gap:6vw;align-items:start}
+.verify-left .eyebrow{color:var(--accent)}
+.verify-media{margin-top:34px;height:420px;overflow:hidden}
+.verify-media img{filter:saturate(.8)}
+.verify-right .lead{margin-top:0}
+.verify-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:38px}
+.verify-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:24px 22px;box-shadow:0 1px 3px rgba(25,24,23,.05)}
+.verify-card h3{font-size:14.5px;font-weight:500;margin:0 0 10px;color:var(--ink)}
+.verify-card p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.6}
+
 @media(max-width:800px){
   .auth-card{padding:36px 26px}
   .field-row{grid-template-columns:1fr}
@@ -77,4 +87,7 @@
   .journey-detail{grid-template-columns:1fr;padding:130px 7vw 80px}
   .journey-detail-media{height:340px}
   .app-item{flex-direction:column;align-items:flex-start}
+  .verify-grid{grid-template-columns:1fr}
+  .verify-cards{grid-template-columns:1fr}
+  .verify-media{height:280px}
 }
