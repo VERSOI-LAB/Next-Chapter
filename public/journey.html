@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Journey — NEXT CHAPTER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="site-nav">
+  <a class="logo" href="/">NEXT CHAPTER</a>
+  <nav class="nav-links">
+    <a href="index.html#journeys">Journeys</a>
+    <a href="index.html#how">How it works</a>
+    <a href="login.html" data-auth-link>Login</a>
+  </nav>
+  <button class="menu-btn" aria-label="Menu">☰</button>
+</header>
+
+<main class="journey-detail" id="journey-root">
+  <div class="journey-detail-media"><img id="j-image" alt=""></div>
+  <div class="journey-detail-body">
+    <div class="eyebrow" id="j-meta">Loading…</div>
+    <h1 class="display" id="j-title"></h1>
+    <p class="lead" id="j-summary"></p>
+    <p id="j-description"></p>
+
+    <ul class="journey-meta-list">
+      <li><span>일정</span><span id="j-duration">—</span></li>
+      <li><span>정원</span><span id="j-capacity">—</span></li>
+      <li><span>참가비</span><span id="j-price">—</span></li>
+      <li><span>출발 예정일</span><span id="j-start">—</span></li>
+    </ul>
+
+    <form id="apply-form">
+      <div class="field">
+        <label for="message">지원 메시지 (선택)</label>
+        <textarea id="message" name="message" placeholder="간단한 자기소개나 신청 사유를 남겨주세요"></textarea>
+      </div>
+      <button type="submit" class="btn" id="apply-btn">신청하기</button>
+      <div class="form-msg" id="apply-msg"></div>
+    </form>
+  </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script src="js/journey.js"></script>
+</body>
+</html>

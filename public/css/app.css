@@ -1,0 +1,80 @@
+/* Shared app UI: auth forms, my page, journey detail, admin dashboard */
+
+.page-header{padding:150px 6vw 40px;background:var(--paper)}
+.page-header .display{font-size:clamp(38px,5.5vw,72px)}
+
+.auth-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:130px 20px 60px;background:var(--paper)}
+.auth-card{width:100%;max-width:440px;background:var(--paper2);padding:48px 40px}
+.auth-card h1{font-family:var(--serif);font-size:34px;font-weight:400;margin:0 0 8px}
+.auth-card .sub{font-size:12px;color:var(--muted);margin-bottom:32px}
+
+.field{margin-bottom:18px}
+.field label{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.field input,.field select,.field textarea{width:100%;padding:12px 14px;border:1px solid var(--line);background:#fff;font:inherit;font-size:14px;color:var(--ink)}
+.field textarea{resize:vertical;min-height:90px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+.btn{display:inline-block;width:100%;background:var(--dark);color:#fff;border:0;padding:14px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;text-align:center}
+.btn:hover{opacity:.9}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-outline{background:none;border:1px solid var(--line);color:var(--ink);width:auto;padding:12px 22px}
+
+.form-msg{font-size:12px;margin-top:14px;min-height:16px}
+.form-msg.error{color:#a4342a}
+.form-msg.success{color:#2f6b3c}
+
+.auth-switch{margin-top:24px;font-size:12px;color:var(--muted);text-align:center}
+.auth-switch a{text-decoration:underline}
+
+.mypage-grid{display:grid;grid-template-columns:.9fr 1.4fr;gap:6vw;padding:0 6vw 140px;align-items:start}
+.profile-card{background:var(--paper2);padding:32px}
+.profile-card h2{font-family:var(--serif);font-size:24px;margin:0 0 22px;font-weight:400}
+
+.badge{display:inline-block;font-size:9px;letter-spacing:.14em;text-transform:uppercase;padding:5px 10px;border:1px solid var(--line)}
+.badge.pending{color:#8a6d00;border-color:#8a6d00}
+.badge.verified,.badge.approved{color:#2f6b3c;border-color:#2f6b3c}
+.badge.rejected{color:#a4342a;border-color:#a4342a}
+.badge.cancelled{color:var(--muted);border-color:var(--line)}
+
+.section-label{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 20px}
+
+.app-list{display:flex;flex-direction:column;gap:14px}
+.app-item{background:var(--paper2);padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.app-item h3{font-family:var(--serif);font-weight:400;font-size:20px;margin:0 0 6px}
+.app-item p{font-size:12px;color:var(--muted);margin:0}
+.app-actions{display:flex;align-items:center;gap:14px}
+
+.link-btn{background:none;border:0;font-size:10px;letter-spacing:.14em;text-transform:uppercase;text-decoration:underline;cursor:pointer;color:var(--ink);padding:0}
+
+.journey-detail{padding:150px 6vw 100px;display:grid;grid-template-columns:1.1fr .9fr;gap:6vw}
+.journey-detail-media{height:520px;overflow:hidden}
+.journey-detail-media img{filter:saturate(.75)}
+.journey-detail-body .display{font-size:clamp(38px,5vw,58px)}
+.journey-meta-list{list-style:none;padding:0;margin:24px 0;border-top:1px solid var(--line)}
+.journey-meta-list li{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line);font-size:13px}
+.journey-meta-list span:first-child{color:var(--muted)}
+
+.admin-table-wrap{overflow-x:auto;margin-top:20px}
+.admin-table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
+.admin-table th,.admin-table td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+.admin-table th{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:400}
+
+.admin-tabs{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap}
+.admin-tabs button{padding:8px 16px;border:1px solid var(--line);background:none;font-size:10px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+.admin-tabs button.active{background:var(--dark);color:#fff;border-color:var(--dark)}
+
+.admin-actions{display:flex;gap:8px;flex-wrap:wrap}
+.admin-actions button{padding:6px 12px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);background:#fff;cursor:pointer}
+.admin-actions button.approve{border-color:#2f6b3c;color:#2f6b3c}
+.admin-actions button.reject{border-color:#a4342a;color:#a4342a}
+
+.empty-state{padding:60px 0;text-align:center;color:var(--muted);font-size:13px}
+
+@media(max-width:800px){
+  .auth-card{padding:36px 26px}
+  .field-row{grid-template-columns:1fr}
+  .mypage-grid{grid-template-columns:1fr;padding:0 7vw 100px}
+  .journey-detail{grid-template-columns:1fr;padding:130px 7vw 80px}
+  .journey-detail-media{height:340px}
+  .app-item{flex-direction:column;align-items:flex-start}
+}

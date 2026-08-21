@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — NEXT CHAPTER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="site-nav">
+  <a class="logo" href="/">NEXT CHAPTER</a>
+  <nav class="nav-links">
+    <a href="index.html#journeys">Journeys</a>
+    <a href="index.html#how">How it works</a>
+    <a href="signup.html">Sign up</a>
+  </nav>
+  <button class="menu-btn" aria-label="Menu">☰</button>
+</header>
+
+<main class="auth-page">
+  <div class="auth-card">
+    <h1>Login</h1>
+    <div class="sub">검증된 회원만을 위한 프라이빗 매칭 저니</div>
+
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn">Login</button>
+      <div class="form-msg" id="form-msg"></div>
+    </form>
+
+    <div class="auth-switch">계정이 없으신가요? <a href="signup.html">Sign up</a></div>
+  </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script src="js/login.js"></script>
+</body>
+</html>

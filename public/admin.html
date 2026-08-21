@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — NEXT CHAPTER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="site-nav">
+  <a class="logo" href="/">NEXT CHAPTER</a>
+  <nav class="nav-links">
+    <a href="mypage.html">My Page</a>
+    <a href="#" id="logout-link">Logout</a>
+  </nav>
+  <button class="menu-btn" aria-label="Menu">☰</button>
+</header>
+
+<div class="page-header">
+  <div class="eyebrow">Admin</div>
+  <h1 class="display">Applications</h1>
+  <div class="admin-tabs" id="status-tabs">
+    <button data-status="" class="active">All</button>
+    <button data-status="pending">Pending</button>
+    <button data-status="approved">Approved</button>
+    <button data-status="rejected">Rejected</button>
+  </div>
+</div>
+
+<main class="section tight" style="padding-top:0">
+  <div id="admin-content">
+    <div class="empty-state">불러오는 중…</div>
+  </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

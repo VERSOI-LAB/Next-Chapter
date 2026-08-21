@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXT CHAPTER — Private Matching Journey</title>
+<meta name="description" content="NEXT CHAPTER — 검증된 3040을 위한 프라이빗 여행형 매칭 저니">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#eee9df;
+  --paper2:#e5dfd3;
+  --ink:#191817;
+  --muted:#6d685f;
+  --line:rgba(25,24,23,.18);
+  --dark:#171716;
+  --serif:"Playfair Display", Georgia, serif;
+  --sans:"DM Sans","Pretendard",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-weight:300;line-height:1.55}
+a{color:inherit;text-decoration:none}
+img{display:block;width:100%;height:100%;object-fit:cover}
+button{font:inherit}
+.site-nav{
+  position:fixed;z-index:50;top:0;left:0;width:100%;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:24px 38px;color:#fff;mix-blend-mode:difference;
+}
+.logo{font-size:13px;letter-spacing:.17em}
+.nav-links{display:flex;gap:28px;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.menu-btn{display:none;border:0;background:none;color:inherit;font-size:22px}
+.hero{height:100svh;min-height:700px;position:relative;overflow:hidden;background:#222}
+.hero:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.24),rgba(0,0,0,.08) 45%,rgba(0,0,0,.42))}
+.hero-media{position:absolute;inset:0}
+.hero-media img{filter:saturate(.78) contrast(.94)}
+.hero-content{position:absolute;z-index:2;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;color:#f5f1e8;padding:80px 20px}
+.kicker{font-size:10px;letter-spacing:.3em;text-transform:uppercase;margin-bottom:22px}
+h1{font-family:var(--serif);font-size:clamp(56px,10vw,142px);font-weight:400;line-height:.93;margin:0;letter-spacing:-.045em}
+.hero-sub{font-size:12px;letter-spacing:.13em;margin-top:30px;text-transform:uppercase}
+.hero-cta{margin-top:42px;border:1px solid rgba(255,255,255,.65);padding:13px 24px;font-size:10px;letter-spacing:.2em;text-transform:uppercase}
+.scroll{position:absolute;z-index:3;bottom:30px;left:50%;transform:translateX(-50%);color:#fff;font-size:9px;letter-spacing:.22em;text-transform:uppercase}
+
+.section{padding:140px 6vw}
+.section.tight{padding-top:90px;padding-bottom:90px}
+.eyebrow{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:24px}
+.display{font-family:var(--serif);font-weight:400;font-size:clamp(42px,6.4vw,92px);line-height:1.02;letter-spacing:-.04em;margin:0}
+.lead{max-width:620px;font-size:16px;color:#403d38;margin-top:34px}
+.center{text-align:center}
+.center .lead{margin-left:auto;margin-right:auto}
+
+.manifesto{min-height:80vh;display:flex;align-items:center}
+.manifesto-grid{display:grid;grid-template-columns:1fr 1.6fr;gap:7vw;align-items:start}
+.manifesto-quote{font-family:var(--serif);font-size:clamp(31px,4.2vw,64px);line-height:1.12}
+.manifesto-copy{max-width:520px;font-size:15px;color:#45413a}
+
+.image-band{height:80vh;min-height:560px;position:relative;overflow:hidden}
+.image-band img{filter:saturate(.72)}
+.image-band .caption{position:absolute;bottom:32px;left:38px;color:#fff;z-index:2;font-size:10px;letter-spacing:.18em;text-transform:uppercase}
+.image-band:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.35),transparent 50%)}
+
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:55px}
+.card{background:var(--paper2)}
+.card-media{aspect-ratio:1.15/1;overflow:hidden}
+.card-media img{transition:transform .8s cubic-bezier(.2,.7,.2,1);filter:saturate(.72)}
+.card:hover img{transform:scale(1.035)}
+.card-body{padding:23px 22px 26px}
+.card-meta{font-size:9px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.card h3{font-family:var(--serif);font-size:30px;font-weight:400;margin:12px 0 7px}
+.card p{font-size:12px;color:var(--muted);margin:0}
+.card-link{display:inline-block;margin-top:23px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:5px}
+
+.process{background:var(--dark);color:#f1ede4}
+.process .eyebrow{color:#a8a297}
+.process .lead{color:#c6c0b5}
+.steps{margin-top:75px;border-top:1px solid rgba(255,255,255,.22)}
+.step{display:grid;grid-template-columns:100px 1fr 1.2fr;gap:30px;padding:30px 0;border-bottom:1px solid rgba(255,255,255,.18)}
+.step-num{font-size:10px;letter-spacing:.2em;color:#a8a297}
+.step-title{font-family:var(--serif);font-size:29px}
+.step-copy{font-size:13px;color:#bdb7ac;max-width:480px}
+
+.editorial{display:grid;grid-template-columns:1.15fr .85fr;gap:7vw;align-items:center}
+.editorial-media{height:760px}
+.editorial-copy{max-width:520px}
+.editorial-copy .display{font-size:clamp(42px,5.3vw,78px)}
+
+.experience{background:#ded7cb}
+.experience-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:7vw}
+.experience-list{margin-top:30px}
+.experience-item{padding:24px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:70px 1fr;gap:20px}
+.experience-item:last-child{border-bottom:1px solid var(--line)}
+.experience-item span{font-size:10px;color:var(--muted);letter-spacing:.15em}
+.experience-item h3{font-family:var(--serif);font-size:27px;font-weight:400;margin:0 0 5px}
+.experience-item p{font-size:12px;color:var(--muted);margin:0}
+
+.philosophy{min-height:85vh;display:flex;align-items:center}
+.philosophy-inner{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8vw}
+.philosophy .display{font-size:clamp(45px,7vw,105px)}
+.philosophy-copy{align-self:end;max-width:480px;font-size:14px}
+
+.cta{background:var(--paper2);text-align:center;padding:170px 20px}
+.cta .display{max-width:900px;margin:auto}
+.cta p{max-width:500px;margin:30px auto;color:var(--muted)}
+.cta a{display:inline-block;margin-top:15px;background:var(--dark);color:#fff;padding:15px 30px;font-size:9px;letter-spacing:.2em;text-transform:uppercase}
+
+footer{background:var(--dark);color:#ddd8cf;padding:70px 38px 35px}
+.footer-top{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:40px}
+.footer-brand{font-family:var(--serif);font-size:34px}
+footer h4{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#99948b;font-weight:400;margin:0 0 18px}
+footer a,footer p{font-size:11px;color:#c4beb4;display:block;margin:7px 0}
+.footer-bottom{margin-top:90px;padding-top:18px;border-top:1px solid rgba(255,255,255,.18);display:flex;justify-content:space-between;font-size:9px;color:#858077}
+
+.reveal{opacity:0;transform:translateY(25px);transition:opacity .9s ease,transform .9s ease}
+.reveal.visible{opacity:1;transform:none}
+
+@media(max-width:800px){
+  .site-nav{padding:20px}
+  .nav-links{display:none}
+  .menu-btn{display:block}
+  .hero{min-height:650px}
+  .section{padding:95px 7vw}
+  .manifesto-grid,.editorial,.experience-grid,.philosophy-inner{grid-template-columns:1fr;gap:45px}
+  .manifesto{min-height:auto}
+  .cards{grid-template-columns:1fr;gap:12px}
+  .image-band{height:62vh;min-height:430px}
+  .step{grid-template-columns:45px 1fr;gap:10px}
+  .step-copy{grid-column:2}
+  .editorial-media{height:560px}
+  .footer-top{grid-template-columns:1fr 1fr}
+  .footer-brand{grid-column:1/-1}
+  .footer-bottom{display:block}
+  .footer-bottom span{display:block;margin-top:7px}
+}
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <a class="logo" href="#">NEXT CHAPTER</a>
+  <nav class="nav-links">
+    <a href="#journeys">Journeys</a>
+    <a href="#how">How it works</a>
+    <a href="#verification">Verification</a>
+    <a href="#about">About</a>
+    <a href="#faq">FAQ</a>
+    <a href="#login">Login</a>
+  </nav>
+  <button class="menu-btn" aria-label="Menu">☰</button>
+</header>
+
+<main>
+<section class="hero">
+  <div class="hero-media">
+    <img src="https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=2200&q=88" alt="Quiet luxury destination">
+  </div>
+  <div class="hero-content">
+    <div class="kicker">Private Matching Journey · 3040</div>
+    <h1>Your next<br>chapter.</h1>
+    <div class="hero-sub">38 hours · 8:8 / 10:10 · 1N2D / 2N3D</div>
+    <a class="hero-cta" href="#journeys">Discover journeys</a>
+  </div>
+  <div class="scroll">Scroll to discover</div>
+</section>
+
+<section class="section manifesto reveal">
+  <div class="manifesto-grid">
+    <div>
+      <div class="eyebrow">01 — Philosophy</div>
+      <div class="manifesto-quote">소개팅은 너무 짧고,<br>여행은 너무 길었습니다.</div>
+    </div>
+    <div class="manifesto-copy">
+      <p>그래서 NEXT CHAPTER는 그 사이에 새로운 시간을 만들었습니다.</p>
+      <p>검증된 3040 남녀가 한 번의 짧은 만남이 아니라, 하나의 여행 안에서 자연스럽게 서로를 알아가는 프라이빗 매칭 저니.</p>
+      <p>연애 프로그램의 몰입감과 여행의 여유, 그리고 검증 시스템의 신뢰를 하나의 경험으로 설계합니다.</p>
+    </div>
+  </div>
+</section>
+
+<section class="image-band">
+  <img src="https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=2200&q=88" alt="Destination">
+  <div class="caption">A different way to meet someone.</div>
+</section>
+
+<section id="journeys" class="section reveal">
+  <div class="eyebrow">02 — Journeys</div>
+  <h2 class="display">Journeys designed<br>for connection.</h2>
+  <p class="lead">국내 1박2일, 해외 근교 2박3일. 직장인의 시간을 존중하면서도 충분히 깊은 만남을 만들 수 있도록 구성합니다.</p>
+
+  <div class="cards">
+    <article class="card">
+      <div class="card-media"><img src="https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=1400&q=85" alt="Domestic journey"></div>
+      <div class="card-body">
+        <div class="card-meta">Domestic · 1 Night / 2 Days</div>
+        <h3>Forest Chapter</h3>
+        <p>서울에서 가까운 자연 속 프라이빗 저니 · 8:8</p>
+        <a class="card-link" href="#">View journey</a>
+      </div>
+    </article>
+    <article class="card">
+      <div class="card-media"><img src="https://images.unsplash.com/photo-1492571350019-22de08371fd3?auto=format&fit=crop&w=1400&q=85" alt="Overseas journey"></div>
+      <div class="card-body">
+        <div class="card-meta">Overseas · 2 Nights / 3 Days</div>
+        <h3>Fukuoka Chapter</h3>
+        <p>짧은 비행으로 떠나는 도시와 바다 · 8:8</p>
+        <a class="card-link" href="#">View journey</a>
+      </div>
+    </article>
+    <article class="card">
+      <div class="card-media"><img src="https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1400&q=85" alt="Signature journey"></div>
+      <div class="card-body">
+        <div class="card-meta">Signature · Coming Soon</div>
+        <h3>Next Chapter</h3>
+        <p>한정된 인원만을 위한 시그니처 프라이빗 저니</p>
+        <a class="card-link" href="#">Coming soon</a>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section id="how" class="section process reveal">
+  <div class="eyebrow">03 — How it works</div>
+  <h2 class="display">Not everyone.<br>The right people.</h2>
+  <p class="lead">누구나 즉시 참가하는 서비스가 아닙니다. 검증하고, 선발하고, 함께 시간을 보내고, 마지막에 스스로 선택합니다.</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">01</div><div class="step-title">Verification</div><div class="step-copy">본인확인과 참가자격 확인, 프로필 및 인터뷰를 통해 여행의 신뢰도를 높입니다.</div></div>
+    <div class="step"><div class="step-num">02</div><div class="step-title">Selection</div><div class="step-copy">상품별 정원과 구성, 참가 목적 등을 고려해 최종 참가자를 선발합니다.</div></div>
+    <div class="step"><div class="step-num">03</div><div class="step-title">8:8 / 10:10</div><div class="step-copy">한 명만 만나는 대신 더 많은 가능성을 한 번의 여행 안에서 만납니다.</div></div>
+    <div class="step"><div class="step-num">04</div><div class="step-title">Journey</div><div class="step-copy">38시간 동안 식사, 액티비티, 그룹 프로그램, 1:1 대화가 자연스럽게 이어집니다.</div></div>
+    <div class="step"><div class="step-num">05</div><div class="step-title">Final Choice</div><div class="step-copy">마지막 선택은 자유입니다. 서로의 의사가 맞는 경우에만 다음 단계로 이어집니다.</div></div>
+  </div>
+</section>
+
+<section id="verification" class="section reveal">
+  <div class="editorial">
+    <div class="editorial-media">
+      <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1600&q=86" alt="People connecting">
+    </div>
+    <div class="editorial-copy">
+      <div class="eyebrow">04 — Verification</div>
+      <h2 class="display">Privacy is part<br>of the experience.</h2>
+      <p class="lead">연애 프로그램처럼 모든 것을 공개하지 않습니다. 신뢰할 수 있는 사람들끼리, 필요한 만큼만 서로를 알아갑니다.</p>
+      <p>본인확인 → 참가자격 → 프로필 → 인터뷰 → 최종 검토. 참가자 개인정보는 필요한 범위에서만 취급하고, 연락처 등 개인 정보의 공유는 별도의 동의와 운영 절차에 따라 진행합니다.</p>
+      <a class="card-link" href="#">Explore verification</a>
+    </div>
+  </div>
+</section>
+
+<section class="section experience reveal">
+  <div class="experience-grid">
+    <div>
+      <div class="eyebrow">05 — The 38 Hours</div>
+      <h2 class="display">Let time<br>do the work.</h2>
+      <p class="lead">1~2시간으로는 보이지 않던 사람의 진짜 모습을, 여행이라는 자연스러운 공간에서 발견합니다.</p>
+    </div>
+    <div class="experience-list">
+      <div class="experience-item"><span>DAY 01</span><div><h3>First Meeting</h3><p>집결, 이동, 첫 식사와 자연스러운 그룹 만남.</p></div></div>
+      <div class="experience-item"><span>DAY 01</span><div><h3>Private Dinner</h3><p>저녁 식사와 자유로운 대화, 관계의 깊이를 만드는 시간.</p></div></div>
+      <div class="experience-item"><span>DAY 01</span><div><h3>Private Talk</h3><p>한 사람과 조금 더 깊게 이야기하는 시간.</p></div></div>
+      <div class="experience-item"><span>DAY 02</span><div><h3>1:1 Journey</h3><p>산책, 브런치, 액티비티 등 자연스러운 일대일 경험.</p></div></div>
+      <div class="experience-item"><span>DAY 02</span><div><h3>Final Choice</h3><p>여행의 마지막에 자신의 마음을 선택합니다.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="about" class="section philosophy reveal">
+  <div class="philosophy-inner">
+    <div>
+      <div class="eyebrow">06 — About</div>
+      <h2 class="display">A new way<br>to meet.</h2>
+    </div>
+    <div class="philosophy-copy">
+      <p>NEXT CHAPTER는 3040 직장인의 현실적인 시간과 프라이버시를 존중합니다.</p>
+      <p>연애를 시작할지, 결혼을 생각할지, 그 답을 억지로 정해주지 않습니다. 중요한 것은 좋은 사람을 만날 수 있는 좋은 환경을 만드는 것.</p>
+      <p>우리는 여행을 매개로 더 많은 가능성을 만나고, 충분한 시간을 보내고, 스스로 다음 챕터를 선택하도록 돕습니다.</p>
+    </div>
+  </div>
+</section>
+
+<section class="image-band">
+  <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2200&q=88" alt="Sea and horizon">
+  <div class="caption">Your next chapter begins with a journey.</div>
+</section>
+
+<section class="cta reveal">
+  <div class="eyebrow">07 — Begin</div>
+  <h2 class="display">Begin your<br>next chapter.</h2>
+  <p>검증된 3040과 함께 떠나는 프라이빗 매칭 저니. 다음 여행을 확인해보세요.</p>
+  <a href="#journeys">Discover upcoming journeys</a>
+</section>
+
+<section id="faq" class="section tight reveal">
+  <div class="eyebrow">08 — FAQ</div>
+  <h2 class="display">Questions,<br>answered quietly.</h2>
+  <div class="steps" style="border-top:1px solid var(--line);color:var(--ink)">
+    <div class="step" style="border-color:var(--line)"><div class="step-num">01</div><div class="step-title">신청하면 바로 참가하나요?</div><div class="step-copy" style="color:var(--muted)">아니요. 신청 후 검증과 선발 절차를 거쳐 승인된 경우 결제가 진행됩니다.</div></div>
+    <div class="step" style="border-color:var(--line)"><div class="step-num">02</div><div class="step-title">혼자 신청할 수 있나요?</div><div class="step-copy" style="color:var(--muted)">네. 개인 단위로 신청하며 최종 구성은 운영자가 프로그램 기준에 따라 설계합니다.</div></div>
+    <div class="step" style="border-color:var(--line)"><div class="step-num">03</div><div class="step-title">연락처는 미리 공개되나요?</div><div class="step-copy" style="color:var(--muted)">아니요. 개인정보와 연락처는 사전에 불필요하게 공개하지 않습니다.</div></div>
+  </div>
+</section>
+</main>
+
+<footer id="login">
+  <div class="footer-top">
+    <div class="footer-brand">NEXT CHAPTER</div>
+    <div>
+      <h4>Explore</h4>
+      <a href="#journeys">Journeys</a>
+      <a href="#how">How it works</a>
+      <a href="#verification">Verification</a>
+      <a href="#about">About</a>
+    </div>
+    <div>
+      <h4>Member</h4>
+      <a href="#">Login</a>
+      <a href="#">My Page</a>
+      <a href="#">Notice</a>
+      <a href="#">FAQ</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© NEXT CHAPTER. All rights reserved.</span>
+    <span>Terms · Privacy · Refund Policy · Travel Terms</span>
+  </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting) entry.target.classList.add('visible');
+  });
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+document.querySelector('.menu-btn').addEventListener('click',()=>{
+  const nav=document.querySelector('.nav-links');
+  const open=nav.style.display==='flex';
+  nav.style.display=open?'none':'flex';
+  if(!open){
+    nav.style.position='absolute';
+    nav.style.top='62px';
+    nav.style.right='20px';
+    nav.style.flexDirection='column';
+    nav.style.padding='18px';
+    nav.style.background='rgba(20,20,19,.92)';
+    nav.style.color='#fff';
+    nav.style.gap='16px';
+  }
+});
+</script>
+</body>
+</html>
