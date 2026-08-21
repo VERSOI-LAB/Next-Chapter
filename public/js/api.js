@@ -51,6 +51,9 @@ function updateNavAuthLinks() {
       el.setAttribute('href', 'login.html');
     }
   });
+  document.querySelectorAll('.nav-cta').forEach((el) => {
+    el.style.display = session ? 'none' : '';
+  });
 }
 
 function requireLoginOrRedirect() {
