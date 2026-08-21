@@ -1,0 +1,60 @@
+/* Story page: editorial slider + review grid + modal */
+
+.story-slider{margin-top:50px}
+.story-slide-card{
+  background:#fff;border-radius:16px;overflow:hidden;
+  box-shadow:0 4px 24px rgba(25,24,23,.08);
+  opacity:1;transition:opacity .35s ease;
+}
+.story-slide-card.fading{opacity:0}
+.story-slide-media{height:420px;overflow:hidden}
+.story-slide-media img{filter:saturate(.85)}
+.story-slide-body{padding:30px 36px 36px}
+.story-slide-tag{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.story-slide-body h3{font-family:var(--serif);font-size:28px;font-weight:400;margin:0 0 12px;letter-spacing:-.01em}
+.story-slide-body p{font-size:13.5px;color:var(--muted);line-height:1.75;margin:0;max-width:640px}
+
+.story-nav{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:24px}
+.story-nav button{
+  width:38px;height:38px;border-radius:50%;border:1px solid var(--line);
+  background:#fff;cursor:pointer;font-size:14px;color:var(--ink);
+  display:flex;align-items:center;justify-content:center;transition:border-color .2s,color .2s;
+}
+.story-nav button:hover{border-color:var(--accent);color:var(--accent)}
+.story-dots{display:flex;gap:8px}
+.story-dot{width:7px;height:7px;border-radius:50%;background:var(--line);border:0;padding:0;cursor:pointer}
+.story-dot.active{background:var(--accent)}
+
+.review-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:44px}
+.review-card{position:relative;aspect-ratio:1/1;overflow:hidden;border-radius:12px;cursor:pointer;background:var(--paper2)}
+.review-card img{transition:transform .5s cubic-bezier(.2,.7,.2,1);filter:saturate(.85)}
+.review-card:hover img{transform:scale(1.05)}
+.review-card-overlay{
+  position:absolute;inset:auto 0 0 0;padding:16px 18px;
+  background:linear-gradient(0deg,rgba(15,13,11,.68),rgba(15,13,11,0) 70%);
+  color:#f5f1e8;
+}
+.review-card-overlay .rc-date{font-size:9px;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+.review-card-overlay .rc-title{font-size:13px;margin-top:4px;font-weight:500}
+
+.review-modal-backdrop{
+  display:none;position:fixed;inset:0;z-index:100;
+  background:rgba(20,18,16,.62);align-items:center;justify-content:center;padding:24px;
+}
+.review-modal-backdrop.open{display:flex}
+.review-modal{position:relative;background:#fff;max-width:460px;width:100%;border-radius:16px;overflow:hidden;max-height:90vh;overflow-y:auto}
+.review-modal-media{height:260px}
+.review-modal-body{padding:26px 28px 32px}
+.review-modal-title{font-family:var(--serif);font-size:20px;margin-bottom:14px;color:var(--ink)}
+.review-modal-text{font-size:13.5px;color:var(--muted);line-height:1.75;margin:0}
+.review-modal-close{
+  position:absolute;top:14px;right:14px;z-index:2;width:32px;height:32px;border-radius:50%;
+  border:0;background:rgba(255,255,255,.9);cursor:pointer;font-size:13px;color:var(--ink);
+}
+
+@media(max-width:800px){
+  .story-slide-media{height:260px}
+  .story-slide-body{padding:24px 22px 28px}
+  .story-slide-body h3{font-size:22px}
+  .review-grid{grid-template-columns:1fr 1fr;gap:10px}
+}

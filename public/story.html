@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/story.css">
 </head>
 <body>
 
@@ -32,21 +33,27 @@
 </header>
 
 <main>
-<section class="section" style="padding-top:150px">
+<section class="section" style="padding-top:150px;padding-bottom:0">
   <div class="eyebrow">Story</div>
-  <h1 class="display">Every journey<br>writes a new chapter.</h1>
-  <p class="lead">여행에서 시작된 인연은 소개팅과는 다른 속도로 쌓입니다. 짧은 대화가 아니라 함께 보낸 38시간이 관계의 시작이 됩니다.</p>
+  <h1 class="display">Stories worth<br>remembering.</h1>
+  <p class="lead">여행에서 시작된 인연들, 그리고 그 안에서 발견한 이야기를 기록합니다.</p>
 
-  <div class="manifesto-copy" style="max-width:640px;margin-top:60px">
-    <p>낯선 사람과 마주 앉아 프로필을 확인하는 소개팅은 늘 조심스럽습니다. 반대로 몇 박씩 이어지는 긴 여행은 함께할 사람을 미리 알지 못한 채 시작하기엔 부담이 큽니다.</p>
-    <p>NEXT CHAPTER는 그 중간의 시간을 만듭니다. 검증을 거친 사람들과 함께, 식사와 산책과 대화가 자연스럽게 이어지는 여행 속에서 서로를 알아갈 시간을 갖습니다.</p>
-    <p>여행이 끝난 뒤에 남는 것은 사진이 아니라, 함께 보낸 시간에 대한 확신입니다. 그 확신이 다음 챕터로 이어질지는 각자의 몫입니다.</p>
+  <div class="story-slider">
+    <div class="story-slide-card" id="story-slide"></div>
+    <div class="story-nav">
+      <button type="button" id="story-prev" aria-label="Previous story">←</button>
+      <div class="story-dots" id="story-dots"></div>
+      <button type="button" id="story-next" aria-label="Next story">→</button>
+    </div>
   </div>
 </section>
 
-<section class="image-band">
-  <img src="https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=2200&q=88" alt="Journey moment">
-  <div class="caption">Your story starts with a journey.</div>
+<section class="section">
+  <div class="eyebrow">Real Journeys</div>
+  <h2 class="display" style="font-size:clamp(32px,4vw,52px)">Photos & stories<br>from real journeys.</h2>
+  <p class="lead">실제 참가자들의 사진과 후기는 프로그램 운영 이후 이곳에 순차적으로 업데이트됩니다.</p>
+
+  <div class="review-grid" id="review-grid"></div>
 </section>
 </main>
 
@@ -74,7 +81,19 @@
   </div>
 </footer>
 
+<div class="review-modal-backdrop" id="review-modal-backdrop">
+  <div class="review-modal">
+    <button type="button" class="review-modal-close" id="review-modal-close" aria-label="Close">✕</button>
+    <div class="review-modal-media"><img id="review-modal-image" alt=""></div>
+    <div class="review-modal-body">
+      <div class="review-modal-title" id="review-modal-title"></div>
+      <p class="review-modal-text" id="review-modal-text"></p>
+    </div>
+  </div>
+</div>
+
 <script src="js/api.js"></script>
 <script src="js/main.js"></script>
+<script src="js/story.js"></script>
 </body>
 </html>
