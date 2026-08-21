@@ -74,6 +74,7 @@
 .verify-left .eyebrow{color:var(--accent)}
 .verify-media{margin-top:34px;height:420px;overflow:hidden}
 .verify-media img{filter:saturate(.8)}
+.verify-right{padding-top:40px}
 .verify-right .lead{margin-top:0}
 .verify-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:38px}
 .verify-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:24px 22px;box-shadow:0 1px 3px rgba(25,24,23,.05)}
@@ -88,6 +89,7 @@
   .journey-detail-media{height:340px}
   .app-item{flex-direction:column;align-items:flex-start}
   .verify-grid{grid-template-columns:1fr}
+  .verify-right{padding-top:0}
   .verify-cards{grid-template-columns:1fr}
   .verify-media{height:280px}
 }
