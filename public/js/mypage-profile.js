@@ -9,6 +9,14 @@ let selfProfile = {
 let selfPhotos = [];
 let selfVideoUrl = null;
 
+const SELF_PROFILE_STEPS = [
+  { title: '인증 자료', desc: '본인 확인을 위한 사진과 영상을 등록해주세요.' },
+  { title: '기본 정보', desc: '나이, 지역, 신체 정보를 알려주세요.' },
+  { title: '학력 & 직업', desc: '학력과 직업 정보를 입력해주세요.' },
+  { title: '경제 정보', desc: '회사, 연봉, 자산 정보를 입력해주세요.' },
+];
+let selfProfileStep = 0;
+
 function fieldRow(labelText, inputEl) {
   const row = document.createElement('div');
   row.className = 'condition-row';
@@ -343,62 +351,121 @@ function renderVideoBox() {
   return grid;
 }
 
+function renderStepFields(step, body) {
+  if (step === 0) {
+    const photoRow = document.createElement('div');
+    photoRow.className = 'condition-row';
+    photoRow.innerHTML = `<div class="condition-label">프로필 사진 (최소 ${PROFILE_PHOTO_MIN}장, 대표사진 지정)</div>`;
+    photoRow.appendChild(renderPhotoGrid());
+    const photoHint = document.createElement('div');
+    photoHint.className = 'photo-upload-hint';
+    photoHint.innerText = '사진을 눌러 대표사진으로 지정할 수 있습니다.';
+    photoRow.appendChild(photoHint);
+    body.appendChild(photoRow);
+
+    const videoRow = document.createElement('div');
+    videoRow.className = 'condition-row';
+    videoRow.innerHTML = '<div class="condition-label">본인확인용 영상 (1개, 카메라 촬영)</div>';
+    videoRow.appendChild(renderVideoBox());
+    const videoHint = document.createElement('div');
+    videoHint.className = 'photo-upload-hint';
+    videoHint.innerText = '상대방에게 공개되지 않으며 인증 심사에만 사용됩니다.';
+    videoRow.appendChild(videoHint);
+    body.appendChild(videoRow);
+  } else if (step === 1) {
+    body.appendChild(fieldRow('출생년도', buildSelect(
+      BIRTH_YEARS.map((y) => y + '년생'),
+      selfProfile.birth_year ? selfProfile.birth_year + '년생' : '',
+      (val) => { selfProfile.birth_year = val.replace('년생', ''); },
+    )));
+
+    body.appendChild(buildRegionRow());
+
+    const heightInput = document.createElement('input');
+    heightInput.type = 'number';
+    heightInput.value = selfProfile.height || '';
+    heightInput.oninput = (e) => { selfProfile.height = e.target.value; };
+    body.appendChild(fieldRow('키 (cm)', heightInput));
+  } else if (step === 2) {
+    body.appendChild(buildDegreeRow());
+    body.appendChild(buildJobRow());
+  } else if (step === 3) {
+    const companyInput = document.createElement('input');
+    companyInput.type = 'text';
+    companyInput.placeholder = '재직 중인 회사명을 입력하세요';
+    companyInput.value = selfProfile.company_name || '';
+    companyInput.oninput = (e) => { selfProfile.company_name = e.target.value; };
+    body.appendChild(fieldRow('회사명', companyInput));
+
+    const salaryInput = document.createElement('input');
+    salaryInput.type = 'number';
+    salaryInput.placeholder = '예: 5000';
+    salaryInput.value = selfProfile.salary || '';
+    salaryInput.oninput = (e) => { selfProfile.salary = e.target.value; };
+    body.appendChild(fieldRow('연봉 (만원)', salaryInput));
+
+    body.appendChild(fieldRow('자산', buildSelect(ASSET_BRACKETS, selfProfile.asset, (val) => { selfProfile.asset = val; })));
+  }
+}
+
+function goToStep(step) {
+  selfProfileStep = Math.max(0, Math.min(SELF_PROFILE_STEPS.length - 1, step));
+  renderSelfProfileForm();
+}
+
 function renderSelfProfileForm() {
   const c = document.getElementById('self-profile-container');
   c.innerHTML = '';
 
-  const photoRow = document.createElement('div');
-  photoRow.className = 'condition-row';
-  photoRow.innerHTML = `<div class="condition-label">프로필 사진 (최소 ${PROFILE_PHOTO_MIN}장, 대표사진 지정)</div>`;
-  photoRow.appendChild(renderPhotoGrid());
-  const photoHint = document.createElement('div');
-  photoHint.className = 'photo-upload-hint';
-  photoHint.innerText = '사진을 눌러 대표사진으로 지정할 수 있습니다.';
-  photoRow.appendChild(photoHint);
-  c.appendChild(photoRow);
+  const stepDef = SELF_PROFILE_STEPS[selfProfileStep];
+  const stepNum = String(selfProfileStep + 1).padStart(2, '0');
+  const stepTotal = String(SELF_PROFILE_STEPS.length).padStart(2, '0');
 
-  const videoRow = document.createElement('div');
-  videoRow.className = 'condition-row';
-  videoRow.innerHTML = '<div class="condition-label">본인확인용 영상 (1개, 카메라 촬영)</div>';
-  videoRow.appendChild(renderVideoBox());
-  const videoHint = document.createElement('div');
-  videoHint.className = 'photo-upload-hint';
-  videoHint.innerText = '상대방에게 공개되지 않으며 인증 심사에만 사용됩니다.';
-  videoRow.appendChild(videoHint);
-  c.appendChild(videoRow);
+  const header = document.createElement('div');
+  header.innerHTML = `
+    <div class="wizard-step-count">STEP ${stepNum} / ${stepTotal}</div>
+    <h3 class="wizard-step-title">${stepDef.title}</h3>
+    <p class="wizard-step-desc">${stepDef.desc}</p>
+    <div class="wizard-progress"><div class="wizard-progress-bar" style="width:${((selfProfileStep + 1) / SELF_PROFILE_STEPS.length) * 100}%"></div></div>`;
+  c.appendChild(header);
 
-  c.appendChild(fieldRow('출생년도', buildSelect(
-    BIRTH_YEARS.map((y) => y + '년생'),
-    selfProfile.birth_year ? selfProfile.birth_year + '년생' : '',
-    (val) => { selfProfile.birth_year = val.replace('년생', ''); },
-  )));
+  const body = document.createElement('div');
+  body.className = 'wizard-body';
+  c.appendChild(body);
+  renderStepFields(selfProfileStep, body);
 
-  c.appendChild(buildRegionRow());
+  const nav = document.createElement('div');
+  nav.className = 'wizard-nav';
 
-  const heightInput = document.createElement('input');
-  heightInput.type = 'number';
-  heightInput.value = selfProfile.height || '';
-  heightInput.oninput = (e) => { selfProfile.height = e.target.value; };
-  c.appendChild(fieldRow('키 (cm)', heightInput));
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'wizard-arrow-btn';
+  prevBtn.innerHTML = '‹';
+  prevBtn.disabled = selfProfileStep === 0;
+  prevBtn.onclick = () => goToStep(selfProfileStep - 1);
+  nav.appendChild(prevBtn);
 
-  c.appendChild(buildDegreeRow());
-  c.appendChild(buildJobRow());
+  const dots = document.createElement('div');
+  dots.className = 'wizard-dots';
+  SELF_PROFILE_STEPS.forEach((_, i) => {
+    const dot = document.createElement('span');
+    dot.className = 'wizard-dot' + (i === selfProfileStep ? ' active' : '') + (i < selfProfileStep ? ' done' : '');
+    dots.appendChild(dot);
+  });
+  nav.appendChild(dots);
 
-  const companyInput = document.createElement('input');
-  companyInput.type = 'text';
-  companyInput.placeholder = '재직 중인 회사명을 입력하세요';
-  companyInput.value = selfProfile.company_name || '';
-  companyInput.oninput = (e) => { selfProfile.company_name = e.target.value; };
-  c.appendChild(fieldRow('회사명', companyInput));
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'wizard-arrow-btn';
+  nextBtn.innerHTML = '›';
+  nextBtn.disabled = selfProfileStep === SELF_PROFILE_STEPS.length - 1;
+  nextBtn.onclick = () => goToStep(selfProfileStep + 1);
+  nav.appendChild(nextBtn);
 
-  const salaryInput = document.createElement('input');
-  salaryInput.type = 'number';
-  salaryInput.placeholder = '예: 5000';
-  salaryInput.value = selfProfile.salary || '';
-  salaryInput.oninput = (e) => { selfProfile.salary = e.target.value; };
-  c.appendChild(fieldRow('연봉 (만원)', salaryInput));
+  c.appendChild(nav);
 
-  c.appendChild(fieldRow('자산', buildSelect(ASSET_BRACKETS, selfProfile.asset, (val) => { selfProfile.asset = val; })));
+  const saveBtn = document.getElementById('save-self-profile-btn');
+  if (saveBtn) saveBtn.style.display = selfProfileStep === SELF_PROFILE_STEPS.length - 1 ? 'inline-block' : 'none';
 }
 
 async function loadSelfPhotos() {
@@ -422,6 +489,7 @@ async function initSelfProfile() {
     const { photos } = await apiFetch('/photos');
     selfPhotos = photos;
 
+    if (!selfProfileInitialized) selfProfileStep = 0;
     renderSelfProfileForm();
     selfProfileInitialized = true;
   } catch (err) {
@@ -443,7 +511,7 @@ document.getElementById('save-self-profile-btn')?.addEventListener('click', asyn
 
   try {
     await apiFetch('/profile/self', { method: 'PUT', body: selfProfile });
-    msg.textContent = '저장되었습니다.';
+    msg.innerHTML = '🎉 프로필 작성이 완료되었습니다. 이제 설레는 여행을 신청할 수 있어요! <a href="journeys.html" class="wizard-cta-link">여행 둘러보기 →</a>';
     msg.className = 'form-msg success';
   } catch (err) {
     msg.textContent = err.message;

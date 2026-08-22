@@ -34,6 +34,25 @@ const VERIFY_DOCS = {
 
 const STATUS_LABEL_MAP = { verified: '인증 완료', pending: '심사중', not_submitted: '미인증' };
 
+const VERIFY_PERSUASION = {
+  job: {
+    title: '직업 인증',
+    copy: '직업 인증을 마치면 이력에 대한 신뢰가 확실해지고, 프로필이 매칭 상대에게 우선적으로 노출돼요.',
+  },
+  education: {
+    title: '학력 인증',
+    copy: '학력 정보는 대화의 결이 통하는 상대를 찾는 중요한 기준이에요. 인증을 마치면 더 정교한 매칭이 가능해집니다.',
+  },
+  income: {
+    title: '소득 인증',
+    copy: '소득 인증은 안정적인 라이프스타일을 보여주는 가장 확실한 신뢰의 지표예요. 검증된 회원일수록 매칭 성사율이 높아집니다.',
+  },
+  asset: {
+    title: '자산 인증',
+    copy: '자산 인증까지 마친 분들은 상대에게 가장 신뢰받는 프로필로 소개돼요. 진지한 만남을 원한다면 가장 확실한 선택입니다.',
+  },
+};
+
 let verificationState = null;
 let openDocType = null;
 
@@ -146,8 +165,30 @@ function openDocPanel(type) {
   closeBtn.type = 'button';
   closeBtn.className = 'doc-panel-close';
   closeBtn.innerText = '닫기';
-  closeBtn.onclick = () => { panel.innerHTML = ''; panel.className = ''; openDocType = null; };
+  closeBtn.onclick = () => { openDocType = null; renderPersuasionPanel(); };
   panel.appendChild(closeBtn);
+}
+
+function renderPersuasionPanel() {
+  const panel = document.getElementById('doc-upload-panel');
+  panel.className = 'verify-persuasion-panel';
+  panel.innerHTML = '';
+
+  const heading = document.createElement('div');
+  heading.className = 'verify-persuasion-heading';
+  heading.innerHTML = '<h3>왜 추가 인증이 중요할까요?</h3><p>선택 항목이지만, 인증을 더할수록 신뢰도 높은 프로필로 우선 매칭돼요.</p>';
+  panel.appendChild(heading);
+
+  Object.entries(VERIFY_PERSUASION).forEach(([type, info]) => {
+    const card = document.createElement('div');
+    card.className = 'verify-persuasion-card';
+    card.innerHTML = `
+      <div class="verify-persuasion-card-title">${info.title}</div>
+      <p>${info.copy}</p>
+      <button type="button" class="verify-persuasion-link">인증하러 가기 →</button>`;
+    card.querySelector('.verify-persuasion-link').onclick = () => openDocPanel(type);
+    panel.appendChild(card);
+  });
 }
 
 function showToast(text) {
@@ -162,6 +203,7 @@ async function initVerificationTab() {
   try {
     verificationState = await apiFetch('/verifications/me');
     renderVerificationTable();
+    if (!openDocType) renderPersuasionPanel();
   } catch (err) {
     // ignore — table stays with loading placeholders
   }

@@ -27,9 +27,29 @@
   <button class="menu-btn" aria-label="Menu">☰</button>
 </header>
 
-<div class="page-header">
+<div class="page-header" id="default-header">
   <div class="eyebrow">Member</div>
   <h1 class="display">My Page</h1>
+</div>
+
+<div class="journey-hero" id="journey-hero" style="display:none">
+  <img id="hero-img" src="" alt="">
+  <div class="journey-hero-content">
+    <div class="eyebrow">Upcoming Journey</div>
+    <h1 class="display" id="hero-title"></h1>
+    <p class="journey-hero-date" id="hero-date"></p>
+    <div class="journey-hero-dday" id="hero-dday" style="display:none">
+      <span class="journey-hero-dday-num" id="hero-dday-num"></span>
+      <span class="journey-hero-dday-label" id="hero-dday-label"></span>
+    </div>
+  </div>
+</div>
+
+<div class="journey-tracker" id="journey-tracker" style="display:none">
+  <div class="tracker-step" data-step="applied"><span class="tracker-dot"></span><span class="tracker-label">신청 완료</span></div>
+  <div class="tracker-step" data-step="review"><span class="tracker-dot"></span><span class="tracker-label">서류 심사</span></div>
+  <div class="tracker-step" data-step="confirmed"><span class="tracker-dot"></span><span class="tracker-label">매칭 확정</span></div>
+  <div class="tracker-step" data-step="departure"><span class="tracker-dot"></span><span class="tracker-label">출발</span></div>
 </div>
 
 <main>
@@ -43,6 +63,16 @@
     <div class="mypage-grid">
       <div class="profile-card">
         <h2>Profile</h2>
+        <div class="profile-gauge-wrap">
+          <div class="profile-gauge">
+            <svg viewBox="0 0 80 80" class="gauge-svg">
+              <circle cx="40" cy="40" r="34" class="gauge-track"></circle>
+              <circle cx="40" cy="40" r="34" class="gauge-fill" id="gauge-fill-circle"></circle>
+            </svg>
+            <div class="gauge-percent" id="gauge-percent">0%</div>
+          </div>
+          <p class="gauge-caption">프로필을 완성하면 매칭 우선순위가 올라가요.</p>
+        </div>
         <form id="profile-form">
           <div class="field">
             <label>이메일</label>
@@ -90,6 +120,13 @@
         </div>
       </div>
     </div>
+
+    <div class="prep-checklist" id="prep-checklist" style="display:none">
+      <p class="section-label">여정 준비 가이드</p>
+      <div class="prep-list" id="prep-list"></div>
+    </div>
+
+    <div class="editorial-strip" id="editorial-strip"></div>
   </div>
 
   <div id="panel-profile" class="mypage-panel" style="padding:0 6vw 140px;max-width:640px">
@@ -100,18 +137,20 @@
     <div class="form-msg" id="self-profile-msg"></div>
   </div>
 
-  <div id="panel-verification" class="mypage-panel" style="padding:0 6vw 140px;max-width:640px">
+  <div id="panel-verification" class="mypage-panel" style="padding:0 6vw 140px">
     <p class="section-label">신원 검증 단계 현황</p>
-    <p style="font-size:12px;color:var(--muted);margin:-14px 0 6px;line-height:1.6">서류 인증 심사를 통과하면 항목별로 인증 완료 처리됩니다.</p>
-    <table class="status-table" id="verification-table">
-      <tr><td>본인확인 (휴대폰) <span class="required-tag">필수</span></td><td id="status-phone"></td></tr>
-      <tr><td>혼인관계증명서(상세) <span class="required-tag">필수</span></td><td id="status-marital"></td></tr>
-      <tr><td>직업 인증</td><td id="status-job"></td></tr>
-      <tr><td>학력 인증</td><td id="status-education"></td></tr>
-      <tr><td>소득 인증</td><td id="status-income"></td></tr>
-      <tr><td>자산 인증</td><td id="status-asset"></td></tr>
-    </table>
-    <div id="doc-upload-panel"></div>
+    <p style="font-size:12px;color:var(--muted);margin:-14px 0 26px;line-height:1.6;max-width:640px">서류 인증 심사를 통과하면 항목별로 인증 완료 처리됩니다.</p>
+    <div class="verify-tab-grid">
+      <div class="verify-list" id="verification-table">
+        <div class="verify-list-item"><div class="verify-list-label">본인확인 (휴대폰) <span class="required-tag">필수</span></div><div id="status-phone"></div></div>
+        <div class="verify-list-item"><div class="verify-list-label">혼인관계증명서(상세) <span class="required-tag">필수</span></div><div id="status-marital"></div></div>
+        <div class="verify-list-item"><div class="verify-list-label">직업 인증</div><div id="status-job"></div></div>
+        <div class="verify-list-item"><div class="verify-list-label">학력 인증</div><div id="status-education"></div></div>
+        <div class="verify-list-item"><div class="verify-list-label">소득 인증</div><div id="status-income"></div></div>
+        <div class="verify-list-item"><div class="verify-list-label">자산 인증</div><div id="status-asset"></div></div>
+      </div>
+      <div id="doc-upload-panel"></div>
+    </div>
   </div>
 </main>
 
