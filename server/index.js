@@ -16,9 +16,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res, next) => {
+app.get('/', (req, res) => {
+  res.set('Cache-Control', 'no-store');
   if (req.hostname === 'admin.versoi.co.kr') return res.redirect('/admin.html');
-  next();
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
 app.use('/api/auth', authRoutes);
