@@ -104,6 +104,44 @@ function renderEditorialStrip() {
     </div>`;
 }
 
+function renderItinerary(applications) {
+  const wrap = document.getElementById('itinerary-block');
+  const list = document.getElementById('itinerary-list');
+
+  const active = applications.filter((a) => ['pending', 'approved'].includes(a.status) && a.journey);
+  if (!active.length) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sorted = [...active].sort((a, b) => new Date(a.journey.starts_at || 0) - new Date(b.journey.starts_at || 0));
+  const upcoming = sorted.find((a) => !a.journey.starts_at || new Date(a.journey.starts_at) >= today);
+  const highlight = upcoming || sorted[sorted.length - 1];
+  const itinerary = highlight.journey.itinerary;
+
+  wrap.style.display = 'block';
+
+  if (!Array.isArray(itinerary) || !itinerary.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:30px 0">일정표는 출발 전에 순차적으로 안내드려요.</div>';
+    return;
+  }
+
+  list.innerHTML = itinerary.map((day) => `
+    <div class="itinerary-day">
+      <div class="itinerary-day-label">${day.date_label || `Day ${day.day}`}</div>
+      ${(day.items || []).map((item) => `
+        <div class="itinerary-item">
+          <div class="time">${item.time || ''}</div>
+          <div>
+            <h4>${item.title || ''}</h4>
+            ${item.desc ? `<p>${item.desc}</p>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
 function renderJourneyHero(applications) {
   const defaultHeader = document.getElementById('default-header');
   const hero = document.getElementById('journey-hero');
@@ -196,6 +234,7 @@ async function loadApplications() {
   try {
     const { applications } = await apiFetch('/applications/me');
     renderJourneyHero(applications);
+    renderItinerary(applications);
 
     if (!applications.length) {
       applicationsList.innerHTML = '<div class="empty-state">아직 신청한 여행이 없습니다.</div>';

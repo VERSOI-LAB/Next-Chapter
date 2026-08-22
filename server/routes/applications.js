@@ -34,7 +34,7 @@ router.post('/', requireAuth, async (req, res) => {
 router.get('/me', requireAuth, async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from('applications')
-    .select('*, journey:journeys(id, slug, title, type, duration, starts_at, image_url)')
+    .select('*, journey:journeys(id, slug, title, type, duration, starts_at, image_url, itinerary)')
     .eq('user_id', req.user.id)
     .order('created_at', { ascending: false });
 

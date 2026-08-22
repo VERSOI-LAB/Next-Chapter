@@ -100,6 +100,16 @@
 .dday-chip .dday-num{font-family:var(--serif);font-size:17px;letter-spacing:-.02em}
 .dday-chip .dday-caption{font-size:8px;letter-spacing:.06em;margin-top:3px;opacity:.85}
 
+.itinerary-block{margin-top:24px}
+.itinerary-day{background:var(--paper2);padding:22px 24px;margin-bottom:12px;border-radius:4px}
+.itinerary-day:last-child{margin-bottom:0}
+.itinerary-day-label{font-family:var(--serif);font-size:16px;color:var(--accent);margin-bottom:12px}
+.itinerary-item{display:grid;grid-template-columns:52px 1fr;gap:14px;padding:11px 0;border-top:1px solid var(--line)}
+.itinerary-item:first-child{border-top:0;padding-top:0}
+.itinerary-item .time{font-size:11px;color:var(--muted);letter-spacing:.03em;padding-top:1px}
+.itinerary-item h4{font-size:13px;font-weight:500;margin:0 0 4px;color:var(--ink)}
+.itinerary-item p{font-size:11.5px;color:var(--muted);margin:0;line-height:1.6}
+
 .link-btn{background:none;border:0;font-size:10px;letter-spacing:.14em;text-transform:uppercase;text-decoration:underline;cursor:pointer;color:var(--ink);padding:0}
 
 .journey-detail{padding:150px 6vw 100px;display:grid;grid-template-columns:1.1fr .9fr;gap:6vw}
@@ -123,6 +133,26 @@
 .admin-actions button{padding:6px 12px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);background:#fff;cursor:pointer}
 .admin-actions button.approve{border-color:#2f6b3c;color:#2f6b3c}
 .admin-actions button.reject{border-color:#a4342a;color:#a4342a}
+
+.journey-admin-list{display:flex;flex-direction:column;gap:12px;margin-top:24px}
+.journey-admin-row{display:flex;justify-content:space-between;align-items:center;gap:20px;background:var(--paper2);padding:18px 22px;flex-wrap:wrap}
+.journey-admin-row h4{font-family:var(--serif);font-size:18px;font-weight:400;margin:0 0 6px}
+.journey-admin-row p{font-size:12px;color:var(--muted);margin:0 0 8px}
+.itin-status{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:3px 8px;border-radius:3px}
+.itin-status.has-itin{color:#2f6b3c;border-color:#2f6b3c}
+
+.itin-editor-panel{margin-top:30px;padding:28px;background:var(--paper2)}
+.itin-editor-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:16px}
+.itin-editor-head h3{font-family:var(--serif);font-size:19px;font-weight:400;margin:0}
+.itin-day-card{background:#fff;border:1px solid var(--line);padding:20px;margin-bottom:16px}
+.itin-day-head{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+.itin-day-label{flex:1;padding:9px 12px;border:1px solid var(--line);font:inherit;font-size:13px;box-sizing:border-box}
+.itin-item-row{display:grid;grid-template-columns:90px 1fr 1fr auto;gap:10px;align-items:start;margin-bottom:10px}
+.itin-item-row input,.itin-item-row textarea{padding:9px 12px;border:1px solid var(--line);font:inherit;font-size:12.5px;width:100%;box-sizing:border-box}
+.itin-item-row textarea{resize:vertical;min-height:38px}
+.itin-remove-item,.itin-remove-day{background:none;border:0;font-size:10px;color:var(--accent);text-decoration:underline;cursor:pointer;white-space:nowrap}
+.itin-add-item{display:inline-block;background:none;border:1px dashed var(--line);padding:8px 14px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;width:100%;text-align:center;box-sizing:border-box}
+.itin-editor-actions{display:flex;align-items:center;gap:16px;margin-top:20px}
 
 .empty-state{padding:60px 0;text-align:center;color:var(--muted);font-size:13px}
 
@@ -226,6 +256,8 @@
   .mypage-tabs{gap:18px;overflow-x:auto}
   .verify-tab-grid{grid-template-columns:1fr}
   .app-actions{width:100%;justify-content:space-between}
+  .itin-item-row{grid-template-columns:1fr}
+  .journey-admin-row{flex-direction:column;align-items:flex-start}
   .journey-hero{height:360px}
   .journey-tracker{padding:26px 7vw 22px}
   .tracker-label{font-size:8.5px;letter-spacing:.04em}

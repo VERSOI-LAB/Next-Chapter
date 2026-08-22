@@ -28,18 +28,32 @@
 
 <div class="page-header">
   <div class="eyebrow">Admin</div>
-  <h1 class="display">Applications</h1>
-  <div class="admin-tabs" id="status-tabs">
-    <button data-status="" class="active">All</button>
-    <button data-status="pending">Pending</button>
-    <button data-status="approved">Approved</button>
-    <button data-status="rejected">Rejected</button>
-  </div>
+  <h1 class="display" id="admin-title">Applications</h1>
 </div>
 
 <main class="section tight" style="padding-top:0">
-  <div id="admin-content">
-    <div class="empty-state">불러오는 중…</div>
+  <div class="mypage-tabs" id="admin-section-tabs">
+    <button type="button" data-section="applications" class="active">신청 관리</button>
+    <button type="button" data-section="journeys">여행 · 일정 관리</button>
+  </div>
+
+  <div id="panel-applications" class="mypage-panel active">
+    <div class="admin-tabs" id="status-tabs">
+      <button data-status="" class="active">All</button>
+      <button data-status="pending">Pending</button>
+      <button data-status="approved">Approved</button>
+      <button data-status="rejected">Rejected</button>
+    </div>
+    <div id="admin-content">
+      <div class="empty-state">불러오는 중…</div>
+    </div>
+  </div>
+
+  <div id="panel-journeys" class="mypage-panel">
+    <div id="journeys-content">
+      <div class="empty-state">불러오는 중…</div>
+    </div>
+    <div id="itinerary-editor"></div>
   </div>
 </main>
 

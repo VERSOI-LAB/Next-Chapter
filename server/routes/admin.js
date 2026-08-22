@@ -5,7 +5,7 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 router.use(requireAuth, requireAdmin);
 
-const JOURNEY_FIELDS = ['slug', 'title', 'type', 'duration', 'capacity_male', 'capacity_female', 'price', 'status', 'summary', 'description', 'image_url', 'starts_at'];
+const JOURNEY_FIELDS = ['slug', 'title', 'type', 'duration', 'capacity_male', 'capacity_female', 'price', 'status', 'summary', 'description', 'image_url', 'starts_at', 'itinerary'];
 
 function pickJourneyFields(body) {
   const out = {};
