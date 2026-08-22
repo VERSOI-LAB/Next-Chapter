@@ -1495,55 +1495,82 @@ document.getElementById('lodging-partner-new-btn').addEventListener('click', () 
   document.getElementById('lodging-partner-form-panel').scrollIntoView({ behavior: 'smooth' });
 });
 
+function partnerRegionType(p) {
+  return p.destination_country === '대한민국' ? 'domestic' : 'overseas';
+}
+
+function renderLodgingPartnersList() {
+  const wrap = document.getElementById('lodging-partners-content');
+  const regionFilter = document.getElementById('lodging-partner-region-filter').value;
+  const search = document.getElementById('lodging-partner-search').value.trim().toLowerCase();
+
+  const filtered = lodgingPartnersCache.filter((p) => {
+    if (regionFilter && partnerRegionType(p) !== regionFilter) return false;
+    if (search) {
+      const haystack = `${p.destination_country} ${p.destination_city} ${p.name}`.toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  if (!lodgingPartnersCache.length) {
+    wrap.innerHTML = '<div class="empty-state">등록된 숙소 파트너가 없습니다.</div>';
+    return;
+  }
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="empty-state">검색 결과가 없습니다.</div>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="journey-admin-list">
+      ${filtered.map((p) => `
+        <div class="journey-admin-row">
+          <div>
+            <h4>${esc(p.name)} <span class="badge ${p.active ? 'approved' : ''}">${p.active ? '사용중' : '비활성'}</span></h4>
+            <p>${partnerRegionType(p) === 'domestic' ? '국내' : '해외'} · ${esc(p.destination_country)} · ${esc(p.destination_city)}${p.price ? ' · ' + Number(p.price).toLocaleString('ko-KR') + '원' : ''}</p>
+          </div>
+          <div class="admin-actions">
+            <button type="button" class="btn-outline" data-edit-partner="${p.id}">수정</button>
+            <button type="button" class="reject" data-delete-partner="${p.id}">삭제</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  wrap.querySelectorAll('[data-edit-partner]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const partner = lodgingPartnersCache.find((p) => p.id === btn.dataset.editPartner);
+      if (!partner) return;
+      bindLodgingPartnerForm(partner);
+      document.getElementById('lodging-partner-form-panel').scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  wrap.querySelectorAll('[data-delete-partner]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('이 숙소 파트너를 삭제하시겠습니까?')) return;
+      btn.disabled = true;
+      try {
+        await apiFetch(`/admin/lodging-partners/${btn.dataset.deletePartner}`, { method: 'DELETE' });
+        await loadLodgingPartners();
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+document.getElementById('lodging-partner-region-filter').addEventListener('change', renderLodgingPartnersList);
+document.getElementById('lodging-partner-search').addEventListener('input', renderLodgingPartnersList);
+
 async function loadLodgingPartners() {
   const wrap = document.getElementById('lodging-partners-content');
   wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
   try {
     const { partners } = await apiFetch('/admin/lodging-partners');
     lodgingPartnersCache = partners;
-
-    if (!partners.length) {
-      wrap.innerHTML = '<div class="empty-state">등록된 숙소 파트너가 없습니다.</div>';
-      return;
-    }
-
-    wrap.innerHTML = `
-      <div class="journey-admin-list">
-        ${partners.map((p) => `
-          <div class="journey-admin-row">
-            <div>
-              <h4>${esc(p.name)} <span class="badge ${p.active ? 'approved' : ''}">${p.active ? '사용중' : '비활성'}</span></h4>
-              <p>${esc(p.destination_country)} · ${esc(p.destination_city)}${p.price ? ' · ' + Number(p.price).toLocaleString('ko-KR') + '원' : ''}</p>
-            </div>
-            <div class="admin-actions">
-              <button type="button" class="btn-outline" data-edit-partner="${p.id}">수정</button>
-              <button type="button" class="reject" data-delete-partner="${p.id}">삭제</button>
-            </div>
-          </div>`).join('')}
-      </div>`;
-
-    wrap.querySelectorAll('[data-edit-partner]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const partner = lodgingPartnersCache.find((p) => p.id === btn.dataset.editPartner);
-        if (!partner) return;
-        bindLodgingPartnerForm(partner);
-        document.getElementById('lodging-partner-form-panel').scrollIntoView({ behavior: 'smooth' });
-      });
-    });
-
-    wrap.querySelectorAll('[data-delete-partner]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('이 숙소 파트너를 삭제하시겠습니까?')) return;
-        btn.disabled = true;
-        try {
-          await apiFetch(`/admin/lodging-partners/${btn.dataset.deletePartner}`, { method: 'DELETE' });
-          await loadLodgingPartners();
-        } catch (err) {
-          alert(err.message);
-          btn.disabled = false;
-        }
-      });
-    });
+    renderLodgingPartnersList();
   } catch (err) {
     wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
   }
