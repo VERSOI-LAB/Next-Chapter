@@ -17,6 +17,44 @@ const SELF_PROFILE_STEPS = [
 ];
 let selfProfileStep = 0;
 
+const PROFILE_SIDE_CONTENT = [
+  {
+    image: 'img/journey-strip-3.jpg',
+    eyebrow: '왜 필요한가요',
+    title: '서로가 진짜 존재하는 사람이라는 확인',
+    desc: '사진과 영상은 실제 만남 전, 상대방에게 신뢰를 주는 최소한의 장치예요. 상대방에게는 공개되지 않으며 인증 심사에만 사용됩니다.',
+  },
+  {
+    image: 'img/journey-strip-4.jpg',
+    eyebrow: '왜 필요한가요',
+    title: '함께 여정을 떠날 그룹을 구성하는 기준',
+    desc: '나이, 지역, 신체 정보는 비슷한 생활권과 연령대의 분들과 자연스럽게 어울릴 수 있는 그룹을 구성하는 데 활용돼요.',
+  },
+  {
+    image: 'img/journey-strip-1.jpg',
+    eyebrow: '왜 필요한가요',
+    title: '대화의 결이 통하는 상대를 위해',
+    desc: '학력과 직업은 조건으로 줄 세우기 위한 정보가 아니라, 더 깊은 대화가 가능한 조합을 만들기 위한 참고 기준이에요.',
+  },
+  {
+    image: 'img/journey-strip-2.jpg',
+    eyebrow: '왜 필요한가요',
+    title: '안정적인 라이프스타일을 보여주는 지표',
+    desc: '회사, 연봉, 자산 정보를 채울수록 더 신중하고 진지한 매칭이 가능해지고, 매칭 우선순위에도 긍정적인 영향을 줘요.',
+  },
+];
+
+function renderProfileSidePanel(step) {
+  const wrap = document.getElementById('profile-side-panel');
+  if (!wrap) return;
+  const content = PROFILE_SIDE_CONTENT[step];
+  wrap.innerHTML = `
+    <div class="profile-side-panel-media"><img src="${content.image}" alt=""></div>
+    <div class="profile-side-panel-eyebrow">${content.eyebrow}</div>
+    <h4>${content.title}</h4>
+    <p>${content.desc}</p>`;
+}
+
 function fieldRow(labelText, inputEl) {
   const row = document.createElement('div');
   row.className = 'condition-row';
@@ -416,6 +454,8 @@ function goToStep(step) {
 function renderSelfProfileForm() {
   const c = document.getElementById('self-profile-container');
   c.innerHTML = '';
+
+  renderProfileSidePanel(selfProfileStep);
 
   const stepDef = SELF_PROFILE_STEPS[selfProfileStep];
   const stepNum = String(selfProfileStep + 1).padStart(2, '0');

@@ -134,12 +134,17 @@
     <div class="editorial-strip" id="editorial-strip"></div>
   </div>
 
-  <div id="panel-profile" class="mypage-panel" style="padding:0 6vw 140px;max-width:640px">
+  <div id="panel-profile" class="mypage-panel" style="padding:0 6vw 140px">
     <p class="section-label">내 프로필 작성</p>
-    <p style="font-size:12px;color:var(--muted);margin:-14px 0 26px;line-height:1.6">나의 조건과 가치관을 작성하면 더 정확한 매칭에 활용됩니다.</p>
-    <div id="self-profile-container"></div>
-    <button type="button" class="btn" id="save-self-profile-btn" style="margin-top:6px">저장하기</button>
-    <div class="form-msg" id="self-profile-msg"></div>
+    <p style="font-size:12px;color:var(--muted);margin:-14px 0 26px;line-height:1.6;max-width:640px">나의 조건과 가치관을 작성하면 더 정확한 매칭에 활용됩니다.</p>
+    <div class="profile-wizard-grid">
+      <div class="profile-wizard-main">
+        <div id="self-profile-container"></div>
+        <button type="button" class="btn" id="save-self-profile-btn" style="margin-top:6px">저장하기</button>
+        <div class="form-msg" id="self-profile-msg"></div>
+      </div>
+      <div class="profile-side-panel" id="profile-side-panel"></div>
+    </div>
   </div>
 
   <div id="panel-verification" class="mypage-panel" style="padding:0 6vw 140px">
