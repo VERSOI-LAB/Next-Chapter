@@ -42,6 +42,18 @@ router.get('/me', requireAuth, async (req, res) => {
   res.json({ applications: data });
 });
 
+router.get('/:id', requireAuth, async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('applications')
+    .select('*, journey:journeys(id, slug, title, type, duration, starts_at, image_url, price, destination_country, destination_city)')
+    .eq('id', req.params.id)
+    .eq('user_id', req.user.id)
+    .single();
+
+  if (error || !data) return res.status(404).json({ error: '신청 내역을 찾을 수 없습니다.' });
+  res.json({ application: data });
+});
+
 router.delete('/:id', requireAuth, async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from('applications')

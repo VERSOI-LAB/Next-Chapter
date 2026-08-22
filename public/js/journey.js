@@ -5,9 +5,12 @@ const slug = params.get('slug');
 
 const applyForm = document.getElementById('apply-form');
 const applyBtn = document.getElementById('apply-btn');
+const applySaveBtn = document.getElementById('apply-save-btn');
 const applyMsg = document.getElementById('apply-msg');
+const passportFields = document.getElementById('passport-fields');
 
 let currentJourney = null;
+let pendingApplicationId = null;
 
 function formatPrice(price) {
   if (price === null || price === undefined) return '추후 공개';
@@ -52,8 +55,17 @@ async function loadJourney() {
   }
 }
 
-applyForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
+async function createApplication() {
+  const { application } = await apiFetch('/applications', {
+    method: 'POST',
+    body: { journey_id: currentJourney.id, message: document.getElementById('message').value.trim() || null },
+  });
+  return application;
+}
+
+applyForm.addEventListener('submit', (e) => e.preventDefault());
+
+applyBtn.addEventListener('click', async () => {
   applyMsg.textContent = '';
   applyMsg.className = 'form-msg';
 
@@ -62,12 +74,17 @@ applyForm.addEventListener('submit', async (e) => {
     return;
   }
 
+  if (currentJourney.type === 'overseas') {
+    passportFields.style.display = '';
+    applyBtn.style.display = 'none';
+    applySaveBtn.style.display = '';
+    passportFields.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
   applyBtn.disabled = true;
   try {
-    await apiFetch('/applications', {
-      method: 'POST',
-      body: { journey_id: currentJourney.id, message: document.getElementById('message').value.trim() || null },
-    });
+    await createApplication();
     applyMsg.textContent = '신청이 접수되었습니다. 검증 및 선발 절차 안내를 기다려주세요.';
     applyMsg.className = 'form-msg success';
     applyForm.reset();
@@ -75,6 +92,53 @@ applyForm.addEventListener('submit', async (e) => {
     applyMsg.textContent = err.message;
     applyMsg.className = 'form-msg error';
     applyBtn.disabled = false;
+  }
+});
+
+applySaveBtn.addEventListener('click', async () => {
+  applyMsg.textContent = '';
+  applyMsg.className = 'form-msg';
+
+  const fullNameKr = document.getElementById('passport-name-kr').value.trim();
+  const fullNameEn = document.getElementById('passport-name-en').value.trim();
+  const passportNumber = document.getElementById('passport-number').value.trim();
+  const passportExpiry = document.getElementById('passport-expiry').value;
+  const imageFile = document.getElementById('passport-image').files[0];
+
+  if (!fullNameKr || !fullNameEn || !passportNumber || !passportExpiry || !imageFile) {
+    applyMsg.textContent = '여권 정보를 모두 입력하고 이미지를 첨부해주세요.';
+    applyMsg.className = 'form-msg error';
+    return;
+  }
+
+  applySaveBtn.disabled = true;
+  try {
+    if (!pendingApplicationId) {
+      const application = await createApplication();
+      pendingApplicationId = application.id;
+    }
+
+    const fd = new FormData();
+    fd.append('full_name_kr', fullNameKr);
+    fd.append('full_name_en', fullNameEn);
+    fd.append('passport_number', passportNumber);
+    fd.append('passport_expiry', passportExpiry);
+    fd.append('passport_image', imageFile);
+
+    const session = getSession();
+    const res = await fetch(`/api/passport/${pendingApplicationId}`, {
+      method: 'POST',
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || '여권 정보 저장에 실패했습니다.');
+
+    window.location.href = `payment.html?application=${pendingApplicationId}`;
+  } catch (err) {
+    applyMsg.textContent = err.message;
+    applyMsg.className = 'form-msg error';
+    applySaveBtn.disabled = false;
   }
 });
 
