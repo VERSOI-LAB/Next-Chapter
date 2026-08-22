@@ -1404,11 +1404,11 @@ function lodgingPartnerFormHtml(p) {
         <div class="field-row">
           <div class="field">
             <label>목적지 국가</label>
-            <input type="text" name="destination_country" required value="${esc(partner.destination_country || '대한민국')}">
+            <input type="text" name="destination_country" required placeholder="예: 대한민국, 일본" value="${esc(partner.destination_country || '')}">
           </div>
           <div class="field">
             <label>목적지 도시</label>
-            <input type="text" name="destination_city" required placeholder="예: 가평" value="${esc(partner.destination_city || '')}">
+            <input type="text" name="destination_city" required placeholder="예: 가평, 후쿠오카" value="${esc(partner.destination_city || '')}">
           </div>
         </div>
         <div class="field">

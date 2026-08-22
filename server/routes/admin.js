@@ -249,7 +249,7 @@ router.get('/journeys/:id/roster', async (req, res) => {
 });
 
 async function tryAutoAssignLodging(journey, bookingId) {
-  if (journey.type !== 'domestic' || !journey.destination_country || !journey.destination_city) return;
+  if (!journey.destination_country || !journey.destination_city) return;
 
   const { data: partners } = await supabaseAdmin
     .from('lodging_partners')
