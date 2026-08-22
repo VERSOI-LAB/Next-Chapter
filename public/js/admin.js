@@ -1199,7 +1199,7 @@ function bookingNotifyToggleHtml(b) {
   return `
     <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer">
       <input type="checkbox" class="booking-notify-toggle" data-booking-id="${b.id}" ${checked ? 'checked' : ''} style="width:auto">
-      업체에 연락 완료${checked ? ` <span style="color:var(--muted)">(${dateLabel})</span>` : ''}
+      업체에 예약 완료${checked ? ` <span style="color:var(--muted)">(${dateLabel})</span>` : ''}
     </label>`;
 }
 
@@ -1269,8 +1269,8 @@ async function loadBookings() {
         : '';
       const needsPartnerContact = (b.details?.partner_id || b.details?.agency_id) && ['requested', 'confirmed'].includes(b.status);
       const notifyNote = !needsPartnerContact ? '' : b.partner_notified_at
-        ? `<br><span style="color:var(--muted)">✅ 연락완료 ${new Date(b.partner_notified_at).toLocaleDateString('ko-KR')}</span>`
-        : `<br><span style="color:var(--danger, #c0392b)">📞 업체 연락 필요</span>`;
+        ? `<br><span style="color:var(--muted)">✅ 예약완료 ${new Date(b.partner_notified_at).toLocaleDateString('ko-KR')}</span>`
+        : `<br><span style="color:var(--danger, #c0392b)">📞 업체 예약 필요</span>`;
       const retryBtn = b.status === 'draft'
         ? `<button type="button" class="link-btn" data-retry-booking="${b.id}">자동 배정 다시 시도</button>`
         : '';
@@ -1676,55 +1676,82 @@ document.getElementById('travel-agency-new-btn').addEventListener('click', () =>
   document.getElementById('travel-agency-form-panel').scrollIntoView({ behavior: 'smooth' });
 });
 
+function agencyRegionType(a) {
+  return a.destination_country === '대한민국' ? 'domestic' : 'overseas';
+}
+
+function renderTravelAgenciesList() {
+  const wrap = document.getElementById('travel-agencies-content');
+  const regionFilter = document.getElementById('travel-agency-region-filter').value;
+  const search = document.getElementById('travel-agency-search').value.trim().toLowerCase();
+
+  const filtered = travelAgenciesCache.filter((a) => {
+    if (regionFilter && agencyRegionType(a) !== regionFilter) return false;
+    if (search) {
+      const haystack = `${a.destination_country} ${a.name}`.toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  if (!travelAgenciesCache.length) {
+    wrap.innerHTML = '<div class="empty-state">등록된 여행사 파트너가 없습니다.</div>';
+    return;
+  }
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="empty-state">검색 결과가 없습니다.</div>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="journey-admin-list">
+      ${filtered.map((a) => `
+        <div class="journey-admin-row">
+          <div>
+            <h4>${esc(a.name)} <span class="badge ${a.active ? 'approved' : ''}">${a.active ? '사용중' : '비활성'}</span></h4>
+            <p>${agencyRegionType(a) === 'domestic' ? '국내' : '해외'} · ${esc(a.destination_country)}${a.contact_email ? ' · ' + esc(a.contact_email) : ''}${a.contact_phone ? ' · ' + esc(a.contact_phone) : ''}</p>
+          </div>
+          <div class="admin-actions">
+            <button type="button" class="btn-outline" data-edit-agency="${a.id}">수정</button>
+            <button type="button" class="reject" data-delete-agency="${a.id}">삭제</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  wrap.querySelectorAll('[data-edit-agency]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const agency = travelAgenciesCache.find((a) => a.id === btn.dataset.editAgency);
+      if (!agency) return;
+      bindTravelAgencyForm(agency);
+      document.getElementById('travel-agency-form-panel').scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  wrap.querySelectorAll('[data-delete-agency]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('이 여행사 파트너를 삭제하시겠습니까?')) return;
+      btn.disabled = true;
+      try {
+        await apiFetch(`/admin/travel-agencies/${btn.dataset.deleteAgency}`, { method: 'DELETE' });
+        await loadTravelAgencies();
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+document.getElementById('travel-agency-region-filter').addEventListener('change', renderTravelAgenciesList);
+document.getElementById('travel-agency-search').addEventListener('input', renderTravelAgenciesList);
+
 async function loadTravelAgencies() {
   const wrap = document.getElementById('travel-agencies-content');
   wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
   try {
     const { agencies } = await apiFetch('/admin/travel-agencies');
     travelAgenciesCache = agencies;
-
-    if (!agencies.length) {
-      wrap.innerHTML = '<div class="empty-state">등록된 여행사 파트너가 없습니다.</div>';
-      return;
-    }
-
-    wrap.innerHTML = `
-      <div class="journey-admin-list">
-        ${agencies.map((a) => `
-          <div class="journey-admin-row">
-            <div>
-              <h4>${esc(a.name)} <span class="badge ${a.active ? 'approved' : ''}">${a.active ? '사용중' : '비활성'}</span></h4>
-              <p>${esc(a.destination_country)}${a.contact_email ? ' · ' + esc(a.contact_email) : ''}${a.contact_phone ? ' · ' + esc(a.contact_phone) : ''}</p>
-            </div>
-            <div class="admin-actions">
-              <button type="button" class="btn-outline" data-edit-agency="${a.id}">수정</button>
-              <button type="button" class="reject" data-delete-agency="${a.id}">삭제</button>
-            </div>
-          </div>`).join('')}
-      </div>`;
-
-    wrap.querySelectorAll('[data-edit-agency]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const agency = travelAgenciesCache.find((a) => a.id === btn.dataset.editAgency);
-        if (!agency) return;
-        bindTravelAgencyForm(agency);
-        document.getElementById('travel-agency-form-panel').scrollIntoView({ behavior: 'smooth' });
-      });
-    });
-
-    wrap.querySelectorAll('[data-delete-agency]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('이 여행사 파트너를 삭제하시겠습니까?')) return;
-        btn.disabled = true;
-        try {
-          await apiFetch(`/admin/travel-agencies/${btn.dataset.deleteAgency}`, { method: 'DELETE' });
-          await loadTravelAgencies();
-        } catch (err) {
-          alert(err.message);
-          btn.disabled = false;
-        }
-      });
-    });
+    renderTravelAgenciesList();
   } catch (err) {
     wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
   }

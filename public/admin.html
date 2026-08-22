@@ -135,6 +135,20 @@
     <div id="travel-agencies-panel" style="display:none">
       <p style="color:var(--muted);font-size:13px;margin:20px 0">해외 여행의 조가 완성되면 목적지 국가와 일치하는 여행사에 자동으로 견적이 요청 상태로 등록됩니다. 여행사가 회신한 견적은 예약 현황 탭에서 직접 입력해 확정해주세요.</p>
       <button type="button" id="travel-agency-new-btn" class="btn-outline" style="margin-bottom:20px">+ 새 여행사 파트너 추가</button>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;max-width:520px">
+        <div class="field" style="min-width:140px">
+          <label>구분</label>
+          <select id="travel-agency-region-filter">
+            <option value="">전체</option>
+            <option value="domestic">국내</option>
+            <option value="overseas">해외</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1;min-width:180px">
+          <label>지역 검색</label>
+          <input type="text" id="travel-agency-search" placeholder="국가 또는 여행사명 (예: 일본)">
+        </div>
+      </div>
       <div id="travel-agency-form-wrap"></div>
       <div id="travel-agencies-content"><div class="empty-state">불러오는 중…</div></div>
     </div>
