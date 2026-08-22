@@ -520,6 +520,332 @@ function renderItineraryEditor() {
   });
 }
 
+let storyQuotesCache = [];
+let storyReviewsCache = [];
+let storyQuotesLoaded = false;
+let storyReviewsLoaded = false;
+
+function storyQuoteFormHtml(q) {
+  const quote = q || {};
+  const isEdit = Boolean(quote.id);
+  return `
+    <div class="itin-editor-panel" id="story-quote-form-panel">
+      <div class="itin-editor-head">
+        <h3>${isEdit ? '카드 수정' : '새 카드 추가'}</h3>
+        <button type="button" id="story-quote-form-close" class="link-btn">닫기</button>
+      </div>
+      <form id="story-quote-form">
+        <div class="field">
+          <label>태그</label>
+          <input type="text" name="tag" value="${esc(quote.tag || 'Editorial')}" placeholder="Editorial / Journal / Guide">
+        </div>
+        <div class="field">
+          <label>제목</label>
+          <input type="text" name="title" required value="${esc(quote.title || '')}">
+        </div>
+        <div class="field">
+          <label>본문</label>
+          <textarea name="body" required>${esc(quote.body || '')}</textarea>
+        </div>
+        <div class="field">
+          <label>사진</label>
+          ${quote.image_url ? `<img src="${esc(quote.image_url)}" alt="" style="width:120px;height:80px;object-fit:cover;display:block;margin-bottom:8px">` : ''}
+          <input type="file" name="image" accept="image/*">
+        </div>
+        <div class="itin-editor-actions">
+          <button type="submit" class="btn-outline">저장</button>
+          <span class="form-msg" id="story-quote-form-msg"></span>
+        </div>
+      </form>
+    </div>`;
+}
+
+function bindStoryQuoteForm(quote) {
+  const wrap = document.getElementById('story-quote-form-wrap');
+  wrap.innerHTML = storyQuoteFormHtml(quote);
+  const form = document.getElementById('story-quote-form');
+  const msg = document.getElementById('story-quote-form-msg');
+
+  document.getElementById('story-quote-form-close').addEventListener('click', () => { wrap.innerHTML = ''; });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+    msg.className = 'form-msg';
+
+    const payload = {
+      tag: form.tag.value.trim() || 'Editorial',
+      title: form.title.value.trim(),
+      body: form.body.value.trim(),
+    };
+    if (!payload.title || !payload.body) {
+      msg.textContent = '제목과 본문을 입력해주세요.';
+      msg.className = 'form-msg error';
+      return;
+    }
+
+    try {
+      let saved;
+      if (quote && quote.id) {
+        ({ quote: saved } = await apiFetch(`/admin/story-quotes/${quote.id}`, { method: 'PUT', body: payload }));
+      } else {
+        ({ quote: saved } = await apiFetch('/admin/story-quotes', { method: 'POST', body: payload }));
+      }
+
+      const imageFile = form.image.files[0];
+      if (imageFile) {
+        const fd = new FormData();
+        fd.append('image', imageFile);
+        const session = getSession();
+        const res = await fetch(`/api/admin/story-quotes/${saved.id}/image`, {
+          method: 'POST',
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+          body: fd,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || '이미지 업로드에 실패했습니다.');
+        saved = data.quote;
+      }
+
+      msg.textContent = '저장되었습니다.';
+      msg.className = 'form-msg success';
+      wrap.innerHTML = '';
+      await loadStoryQuotesAdmin();
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = 'form-msg error';
+    }
+  });
+}
+
+document.getElementById('story-quote-new-btn').addEventListener('click', () => {
+  bindStoryQuoteForm(null);
+  document.getElementById('story-quote-form-panel').scrollIntoView({ behavior: 'smooth' });
+});
+
+async function loadStoryQuotesAdmin() {
+  const wrap = document.getElementById('story-quotes-content');
+  wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+  try {
+    const { quotes } = await apiFetch('/admin/story-quotes');
+    storyQuotesCache = quotes;
+
+    if (!quotes.length) {
+      wrap.innerHTML = '<div class="empty-state">등록된 카드가 없습니다.</div>';
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div class="journey-admin-list">
+        ${quotes.map((q) => `
+          <div class="journey-admin-row">
+            ${q.image_url ? `<img src="${esc(q.image_url)}" alt="" style="width:80px;height:56px;object-fit:cover;margin-right:14px">` : ''}
+            <div>
+              <h4>${esc(q.title)} <span class="badge">${esc(q.tag)}</span></h4>
+              <p>${esc((q.body || '').slice(0, 60))}${(q.body || '').length > 60 ? '…' : ''}</p>
+            </div>
+            <div class="admin-actions">
+              <button type="button" class="btn-outline" data-edit-quote="${q.id}">수정</button>
+              <button type="button" class="reject" data-delete-quote="${q.id}">삭제</button>
+            </div>
+          </div>`).join('')}
+      </div>`;
+
+    wrap.querySelectorAll('[data-edit-quote]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const quote = storyQuotesCache.find((q) => q.id === btn.dataset.editQuote);
+        if (!quote) return;
+        bindStoryQuoteForm(quote);
+        document.getElementById('story-quote-form-panel').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    wrap.querySelectorAll('[data-delete-quote]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('이 카드를 삭제하시겠습니까?')) return;
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/story-quotes/${btn.dataset.deleteQuote}`, { method: 'DELETE' });
+          await loadStoryQuotesAdmin();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
+function storyReviewFormHtml(r) {
+  const review = r || {};
+  const isEdit = Boolean(review.id);
+  return `
+    <div class="itin-editor-panel" id="story-review-form-panel">
+      <div class="itin-editor-head">
+        <h3>${isEdit ? '후기 수정' : '새 후기 추가'}</h3>
+        <button type="button" id="story-review-form-close" class="link-btn">닫기</button>
+      </div>
+      <form id="story-review-form">
+        <div class="field-row">
+          <div class="field">
+            <label>날짜 라벨</label>
+            <input type="text" name="review_date" value="${esc(review.review_date || 'Coming Soon')}" placeholder="예: 2026.03 또는 Coming Soon">
+          </div>
+          <div class="field">
+            <label>프로그램명</label>
+            <input type="text" name="program" required value="${esc(review.program || '')}">
+          </div>
+        </div>
+        <div class="field">
+          <label>후기 내용</label>
+          <textarea name="review_text" required>${esc(review.review_text || '')}</textarea>
+        </div>
+        <div class="field">
+          <label>사진</label>
+          ${review.image_url ? `<img src="${esc(review.image_url)}" alt="" style="width:120px;height:80px;object-fit:cover;display:block;margin-bottom:8px">` : ''}
+          <input type="file" name="image" accept="image/*">
+        </div>
+        <div class="itin-editor-actions">
+          <button type="submit" class="btn-outline">저장</button>
+          <span class="form-msg" id="story-review-form-msg"></span>
+        </div>
+      </form>
+    </div>`;
+}
+
+function bindStoryReviewForm(review) {
+  const wrap = document.getElementById('story-review-form-wrap');
+  wrap.innerHTML = storyReviewFormHtml(review);
+  const form = document.getElementById('story-review-form');
+  const msg = document.getElementById('story-review-form-msg');
+
+  document.getElementById('story-review-form-close').addEventListener('click', () => { wrap.innerHTML = ''; });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+    msg.className = 'form-msg';
+
+    const payload = {
+      review_date: form.review_date.value.trim() || 'Coming Soon',
+      program: form.program.value.trim(),
+      review_text: form.review_text.value.trim(),
+    };
+    if (!payload.program || !payload.review_text) {
+      msg.textContent = '프로그램명과 후기 내용을 입력해주세요.';
+      msg.className = 'form-msg error';
+      return;
+    }
+
+    try {
+      let saved;
+      if (review && review.id) {
+        ({ review: saved } = await apiFetch(`/admin/story-reviews/${review.id}`, { method: 'PUT', body: payload }));
+      } else {
+        ({ review: saved } = await apiFetch('/admin/story-reviews', { method: 'POST', body: payload }));
+      }
+
+      const imageFile = form.image.files[0];
+      if (imageFile) {
+        const fd = new FormData();
+        fd.append('image', imageFile);
+        const session = getSession();
+        const res = await fetch(`/api/admin/story-reviews/${saved.id}/image`, {
+          method: 'POST',
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+          body: fd,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || '이미지 업로드에 실패했습니다.');
+        saved = data.review;
+      }
+
+      msg.textContent = '저장되었습니다.';
+      msg.className = 'form-msg success';
+      wrap.innerHTML = '';
+      await loadStoryReviewsAdmin();
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = 'form-msg error';
+    }
+  });
+}
+
+document.getElementById('story-review-new-btn').addEventListener('click', () => {
+  bindStoryReviewForm(null);
+  document.getElementById('story-review-form-panel').scrollIntoView({ behavior: 'smooth' });
+});
+
+async function loadStoryReviewsAdmin() {
+  const wrap = document.getElementById('story-reviews-content');
+  wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+  try {
+    const { reviews } = await apiFetch('/admin/story-reviews');
+    storyReviewsCache = reviews;
+
+    if (!reviews.length) {
+      wrap.innerHTML = '<div class="empty-state">등록된 후기가 없습니다.</div>';
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div class="journey-admin-list">
+        ${reviews.map((r) => `
+          <div class="journey-admin-row">
+            ${r.image_url ? `<img src="${esc(r.image_url)}" alt="" style="width:80px;height:56px;object-fit:cover;margin-right:14px">` : ''}
+            <div>
+              <h4>${esc(r.program)} <span class="badge">${esc(r.review_date)}</span></h4>
+              <p>${esc((r.review_text || '').slice(0, 60))}${(r.review_text || '').length > 60 ? '…' : ''}</p>
+            </div>
+            <div class="admin-actions">
+              <button type="button" class="btn-outline" data-edit-review="${r.id}">수정</button>
+              <button type="button" class="reject" data-delete-review="${r.id}">삭제</button>
+            </div>
+          </div>`).join('')}
+      </div>`;
+
+    wrap.querySelectorAll('[data-edit-review]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const review = storyReviewsCache.find((r) => r.id === btn.dataset.editReview);
+        if (!review) return;
+        bindStoryReviewForm(review);
+        document.getElementById('story-review-form-panel').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    wrap.querySelectorAll('[data-delete-review]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('이 후기를 삭제하시겠습니까?')) return;
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/story-reviews/${btn.dataset.deleteReview}`, { method: 'DELETE' });
+          await loadStoryReviewsAdmin();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
+document.getElementById('story-sub-tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-story-tab]');
+  if (!btn) return;
+  document.querySelectorAll('#story-sub-tabs button').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('story-quotes-panel').style.display = btn.dataset.storyTab === 'quotes' ? '' : 'none';
+  document.getElementById('story-reviews-panel').style.display = btn.dataset.storyTab === 'reviews' ? '' : 'none';
+  if (btn.dataset.storyTab === 'reviews' && !storyReviewsLoaded) {
+    storyReviewsLoaded = true;
+    loadStoryReviewsAdmin();
+  }
+});
+
 const VERIFICATION_STATUS_LABEL = { pending: '검토중', verified: '인증완료', rejected: '거절됨' };
 const ROLE_LABEL = { user: 'USER', admin: 'ADMIN', super_admin: '최고관리자' };
 let currentMemberVerification = '';
@@ -992,12 +1318,13 @@ const adminSectionTabs = document.querySelectorAll('#admin-section-tabs button')
 const adminPanels = {
   applications: document.getElementById('panel-applications'),
   journeys: document.getElementById('panel-journeys'),
+  story: document.getElementById('panel-story'),
   members: document.getElementById('panel-members'),
   matching: document.getElementById('panel-matching'),
   revenue: document.getElementById('panel-revenue'),
   permissions: document.getElementById('panel-permissions'),
 };
-const ADMIN_TITLE_LABEL = { applications: 'Applications', journeys: 'Journeys', members: 'Members', matching: 'Matching', revenue: 'Revenue', permissions: 'Permissions' };
+const ADMIN_TITLE_LABEL = { applications: 'Applications', journeys: 'Journeys', story: 'Story', members: 'Members', matching: 'Matching', revenue: 'Revenue', permissions: 'Permissions' };
 
 let membersLoaded = false;
 let matchingLoaded = false;
@@ -1026,6 +1353,10 @@ adminSectionTabs.forEach((btn) => {
     if (btn.dataset.section === 'journeys' && !journeysLoaded) {
       journeysLoaded = true;
       loadJourneys();
+    }
+    if (btn.dataset.section === 'story' && !storyQuotesLoaded) {
+      storyQuotesLoaded = true;
+      loadStoryQuotesAdmin();
     }
     if (btn.dataset.section === 'members' && !membersLoaded) {
       membersLoaded = true;

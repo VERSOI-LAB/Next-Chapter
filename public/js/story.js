@@ -1,29 +1,15 @@
-const REVIEW_PLACEHOLDER = {
-  date: 'Coming Soon',
-  program: '참가 후기',
-  review: '실제 참가자의 사진과 후기는 프로그램 운영 이후 이곳에 순차적으로 업데이트될 예정입니다.',
-};
-
-const REVIEW_IMAGES = [
-  'img/journey-strip-1.jpg',
-  'img/journey-strip-2.jpg',
-  'img/journey-strip-3.jpg',
-  'img/journey-strip-4.jpg',
-  'img/journey-strip-5.jpg',
-  'img/hero.jpg',
-];
-
+let STORY_REVIEWS = [];
 let storyIndex = 0;
 
 function renderStorySlide() {
   const card = document.getElementById('story-slide');
-  if (!card) return;
+  if (!card || !STORY_QUOTES.length) return;
   const slide = STORY_QUOTES[storyIndex];
 
   card.classList.add('fading');
   setTimeout(() => {
     card.innerHTML = `
-      <div class="story-slide-media"><img src="${slide.image}" alt="${slide.title}"></div>
+      <div class="story-slide-media"><img src="${slide.image_url || ''}" alt="${slide.title}"></div>
       <div class="story-slide-body">
         <div class="story-slide-tag">${slide.tag}</div>
         <h3>${slide.title}</h3>
@@ -39,7 +25,7 @@ function renderStorySlide() {
 
 function initStorySlider() {
   const dotsWrap = document.getElementById('story-dots');
-  if (!dotsWrap) return;
+  if (!dotsWrap || !STORY_QUOTES.length) return;
 
   dotsWrap.innerHTML = STORY_QUOTES.map((_, i) =>
     `<button type="button" class="story-dot" data-index="${i}" aria-label="Slide ${i + 1}"></button>`
@@ -69,12 +55,17 @@ function initReviewGrid() {
   const grid = document.getElementById('review-grid');
   if (!grid) return;
 
-  grid.innerHTML = REVIEW_IMAGES.map((src) => `
-    <div class="review-card" data-image="${src}">
-      <img src="${src}" alt="참가 후기">
+  if (!STORY_REVIEWS.length) {
+    grid.innerHTML = '<div class="empty-state">등록된 후기가 없습니다.</div>';
+    return;
+  }
+
+  grid.innerHTML = STORY_REVIEWS.map((r, i) => `
+    <div class="review-card" data-index="${i}">
+      <img src="${r.image_url || ''}" alt="참가 후기">
       <div class="review-card-overlay">
-        <div class="rc-date">${REVIEW_PLACEHOLDER.date}</div>
-        <div class="rc-title">${REVIEW_PLACEHOLDER.program}</div>
+        <div class="rc-date">${r.review_date}</div>
+        <div class="rc-title">${r.program}</div>
       </div>
     </div>`
   ).join('');
@@ -84,10 +75,10 @@ function initReviewGrid() {
   const modalTitle = document.getElementById('review-modal-title');
   const modalText = document.getElementById('review-modal-text');
 
-  function openModal(src) {
-    modalImage.src = src;
-    modalTitle.textContent = `${REVIEW_PLACEHOLDER.date} · ${REVIEW_PLACEHOLDER.program}`;
-    modalText.textContent = REVIEW_PLACEHOLDER.review;
+  function openModal(review) {
+    modalImage.src = review.image_url || '';
+    modalTitle.textContent = `${review.review_date} · ${review.program}`;
+    modalText.textContent = review.review_text;
     backdrop.classList.add('open');
   }
 
@@ -96,7 +87,7 @@ function initReviewGrid() {
   }
 
   grid.querySelectorAll('.review-card').forEach((card) => {
-    card.addEventListener('click', () => openModal(card.dataset.image));
+    card.addEventListener('click', () => openModal(STORY_REVIEWS[Number(card.dataset.index)]));
   });
 
   document.getElementById('review-modal-close').addEventListener('click', closeModal);
@@ -108,7 +99,17 @@ function initReviewGrid() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+async function loadStoryReviews() {
+  try {
+    const { reviews } = await apiFetch('/story/reviews');
+    STORY_REVIEWS = reviews || [];
+  } catch {
+    STORY_REVIEWS = [];
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await Promise.all([loadStoryQuotes(), loadStoryReviews()]);
   initStorySlider();
   initReviewGrid();
 });

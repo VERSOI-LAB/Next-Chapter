@@ -11,6 +11,19 @@ router.use(requireAuth, requireAdmin);
 const journeyImageUpload = multer({ limits: { fileSize: 8 * 1024 * 1024 } });
 const JOURNEY_IMAGES_BUCKET = 'journey-images';
 
+const storyImageUpload = multer({ limits: { fileSize: 8 * 1024 * 1024 } });
+const STORY_IMAGES_BUCKET = 'story-images';
+
+async function uploadStoryImage(folder, id, file) {
+  const ext = (file.originalname.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${folder}/${id}/${Date.now()}.${ext}`;
+  const { error } = await supabaseAdmin.storage
+    .from(STORY_IMAGES_BUCKET)
+    .upload(path, file.buffer, { contentType: file.mimetype, upsert: true });
+  if (error) throw new Error('이미지 업로드에 실패했습니다.');
+  return supabaseAdmin.storage.from(STORY_IMAGES_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
 const JOURNEY_FIELDS = ['slug', 'title', 'type', 'duration', 'capacity_male', 'capacity_female', 'price', 'status', 'summary', 'description', 'image_url', 'starts_at', 'itinerary'];
 
 function pickJourneyFields(body) {
@@ -429,6 +442,107 @@ router.patch('/verification/:userId', async (req, res) => {
 
   if (error) return res.status(500).json({ error: '검증 상태 변경에 실패했습니다.' });
   res.json({ profile: data });
+});
+
+const STORY_QUOTE_FIELDS = ['tag', 'title', 'body', 'image_url', 'sort_order'];
+const STORY_REVIEW_FIELDS = ['review_date', 'program', 'review_text', 'image_url', 'sort_order'];
+
+function pickFields(body, fields) {
+  const out = {};
+  for (const key of fields) {
+    if (body[key] !== undefined) out[key] = body[key];
+  }
+  return out;
+}
+
+router.get('/story-quotes', async (req, res) => {
+  const { data, error } = await supabaseAdmin.from('story_quotes').select('*').order('sort_order', { ascending: true });
+  if (error) return res.status(500).json({ error: '스토리 카드를 불러오지 못했습니다.' });
+  res.json({ quotes: data });
+});
+
+router.post('/story-quotes', async (req, res) => {
+  const payload = pickFields(req.body || {}, STORY_QUOTE_FIELDS);
+  if (!payload.title || !payload.body) {
+    return res.status(400).json({ error: '제목과 본문은 필수입니다.' });
+  }
+  if (!payload.tag) payload.tag = 'Editorial';
+
+  const { data, error } = await supabaseAdmin.from('story_quotes').insert(payload).select().single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(201).json({ quote: data });
+});
+
+router.put('/story-quotes/:id', async (req, res) => {
+  const payload = pickFields(req.body || {}, STORY_QUOTE_FIELDS);
+  const { data, error } = await supabaseAdmin.from('story_quotes').update(payload).eq('id', req.params.id).select().single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ quote: data });
+});
+
+router.delete('/story-quotes/:id', async (req, res) => {
+  const { error } = await supabaseAdmin.from('story_quotes').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: '삭제에 실패했습니다.' });
+  res.json({ ok: true });
+});
+
+router.post('/story-quotes/:id/image', storyImageUpload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '이미지 파일을 선택해주세요.' });
+  if (!req.file.mimetype.startsWith('image/')) return res.status(400).json({ error: '이미지 파일만 업로드할 수 있습니다.' });
+
+  try {
+    const image_url = await uploadStoryImage('quotes', req.params.id, req.file);
+    const { data, error } = await supabaseAdmin.from('story_quotes').update({ image_url }).eq('id', req.params.id).select().single();
+    if (error) throw new Error('이미지 저장에 실패했습니다.');
+    res.json({ quote: data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/story-reviews', async (req, res) => {
+  const { data, error } = await supabaseAdmin.from('story_reviews').select('*').order('sort_order', { ascending: true });
+  if (error) return res.status(500).json({ error: '참가 후기를 불러오지 못했습니다.' });
+  res.json({ reviews: data });
+});
+
+router.post('/story-reviews', async (req, res) => {
+  const payload = pickFields(req.body || {}, STORY_REVIEW_FIELDS);
+  if (!payload.program || !payload.review_text) {
+    return res.status(400).json({ error: '프로그램명과 후기 내용은 필수입니다.' });
+  }
+  if (!payload.review_date) payload.review_date = 'Coming Soon';
+
+  const { data, error } = await supabaseAdmin.from('story_reviews').insert(payload).select().single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(201).json({ review: data });
+});
+
+router.put('/story-reviews/:id', async (req, res) => {
+  const payload = pickFields(req.body || {}, STORY_REVIEW_FIELDS);
+  const { data, error } = await supabaseAdmin.from('story_reviews').update(payload).eq('id', req.params.id).select().single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ review: data });
+});
+
+router.delete('/story-reviews/:id', async (req, res) => {
+  const { error } = await supabaseAdmin.from('story_reviews').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: '삭제에 실패했습니다.' });
+  res.json({ ok: true });
+});
+
+router.post('/story-reviews/:id/image', storyImageUpload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '이미지 파일을 선택해주세요.' });
+  if (!req.file.mimetype.startsWith('image/')) return res.status(400).json({ error: '이미지 파일만 업로드할 수 있습니다.' });
+
+  try {
+    const image_url = await uploadStoryImage('reviews', req.params.id, req.file);
+    const { data, error } = await supabaseAdmin.from('story_reviews').update({ image_url }).eq('id', req.params.id).select().single();
+    if (error) throw new Error('이미지 저장에 실패했습니다.');
+    res.json({ review: data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

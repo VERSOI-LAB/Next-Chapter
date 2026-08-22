@@ -10,6 +10,7 @@ const profileRoutes = require('./routes/profile');
 const adminRoutes = require('./routes/admin');
 const photoRoutes = require('./routes/photos');
 const verificationRoutes = require('./routes/verifications');
+const storyRoutes = require('./routes/story');
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/photos', photoRoutes);
 app.use('/api/verifications', verificationRoutes);
+app.use('/api/story', storyRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

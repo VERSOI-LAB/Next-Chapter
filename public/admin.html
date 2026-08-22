@@ -35,6 +35,7 @@
   <div class="mypage-tabs" id="admin-section-tabs">
     <button type="button" data-section="applications" class="active">신청 관리</button>
     <button type="button" data-section="journeys">여행 · 일정 관리</button>
+    <button type="button" data-section="story">스토리 관리</button>
     <button type="button" data-section="members">회원 관리</button>
     <button type="button" data-section="matching">매칭 관리</button>
     <button type="button" data-section="revenue">매출 관리</button>
@@ -60,6 +61,23 @@
       <div class="empty-state">불러오는 중…</div>
     </div>
     <div id="itinerary-editor"></div>
+  </div>
+
+  <div id="panel-story" class="mypage-panel">
+    <div class="admin-tabs" id="story-sub-tabs">
+      <button type="button" data-story-tab="quotes" class="active">카드 (에디토리얼)</button>
+      <button type="button" data-story-tab="reviews">참가 후기</button>
+    </div>
+    <div id="story-quotes-panel">
+      <button type="button" id="story-quote-new-btn" class="btn-outline" style="margin:20px 0">+ 새 카드 추가</button>
+      <div id="story-quote-form-wrap"></div>
+      <div id="story-quotes-content"><div class="empty-state">불러오는 중…</div></div>
+    </div>
+    <div id="story-reviews-panel" style="display:none">
+      <button type="button" id="story-review-new-btn" class="btn-outline" style="margin:20px 0">+ 새 후기 추가</button>
+      <div id="story-review-form-wrap"></div>
+      <div id="story-reviews-content"><div class="empty-state">불러오는 중…</div></div>
+    </div>
   </div>
 
   <div id="panel-members" class="mypage-panel">
