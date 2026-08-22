@@ -206,6 +206,16 @@ function journeyFormHtml(j) {
           <label>제목</label>
           <input type="text" name="title" required value="${esc(journey.title || '')}">
         </div>
+        <div class="field-row">
+          <div class="field">
+            <label>목적지 국가</label>
+            <input type="text" name="destination_country" placeholder="예: 대한민국, 일본" value="${esc(journey.destination_country || '')}">
+          </div>
+          <div class="field">
+            <label>목적지 도시</label>
+            <input type="text" name="destination_city" placeholder="예: 가평, 후쿠오카" value="${esc(journey.destination_city || '')}">
+          </div>
+        </div>
         <div class="field">
           <label>한줄 소개</label>
           <input type="text" name="summary" value="${esc(journey.summary || '')}">
@@ -281,6 +291,8 @@ function bindJourneyForm(journey) {
       type: form.type.value,
       duration,
       title: form.title.value.trim(),
+      destination_country: form.destination_country.value.trim() || null,
+      destination_city: form.destination_city.value.trim() || null,
       summary: form.summary.value.trim() || null,
       description: form.description.value.trim() || null,
       capacity_male: Number(form.capacity_male.value) || 0,
@@ -358,11 +370,12 @@ async function loadJourneys() {
           const dayCount = Array.isArray(j.itinerary) ? j.itinerary.length : 0;
           const itinLabel = dayCount ? `${dayCount}일 일정 등록됨` : '일정 미등록';
           const dateLabel = j.starts_at ? new Date(j.starts_at).toLocaleDateString('ko-KR') : '출발일 미정';
+          const destLabel = [j.destination_country, j.destination_city].filter(Boolean).join(' · ');
           return `
             <div class="journey-admin-row">
               <div>
                 <h4>${esc(j.title)} <span class="badge ${j.status === 'open' ? 'approved' : j.status === 'closed' ? 'rejected' : ''}">${JOURNEY_STATUS_LABEL[j.status] || j.status}</span></h4>
-                <p>${JOURNEY_TYPE_LABEL[j.type] || esc(j.type)} · ${esc(j.duration || '-')} · ${dateLabel}</p>
+                <p>${JOURNEY_TYPE_LABEL[j.type] || esc(j.type)} · ${esc(j.duration || '-')} · ${dateLabel}${destLabel ? ' · ' + esc(destLabel) : ''}</p>
                 <span class="itin-status ${dayCount ? 'has-itin' : ''}">${itinLabel}</span>
               </div>
               <div class="admin-actions">
@@ -1144,6 +1157,498 @@ async function loadMatchingRoster() {
   }
 }
 
+const BOOKING_STATUS_LABEL = { draft: '예약 필요', requested: '요청됨', confirmed: '확정됨', failed: '실패', cancelled: '취소됨' };
+const BOOKING_TYPE_LABEL = { lodging: '숙박권', flight: '항공권' };
+let bookingsCache = [];
+
+function bookingEditFormHtml(b) {
+  return `
+    <form class="booking-edit-form" data-booking-id="${b.id}">
+      <div class="field-row">
+        <div class="field">
+          <label>상태</label>
+          <select name="status">
+            ${Object.entries(BOOKING_STATUS_LABEL).map(([v, label]) => `<option value="${v}" ${b.status === v ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>공급자 · 업체명</label>
+          <input type="text" name="provider" value="${esc(b.provider || '')}" placeholder="예: OO펜션, OO항공">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>비용 (원)</label>
+          <input type="number" name="cost" min="0" value="${b.cost ?? ''}">
+        </div>
+        <div class="field">
+          <label>예약 확정번호</label>
+          <input type="text" name="confirmation_no" value="${esc(b.confirmation_no || '')}">
+        </div>
+      </div>
+      <div class="itin-editor-actions">
+        <button type="submit" class="btn-outline">저장</button>
+        <span class="form-msg"></span>
+      </div>
+    </form>`;
+}
+
+function bookingMailtoHtml(b, agencyEmail) {
+  if (b.type !== 'flight' || b.status !== 'requested') return '';
+  const destLabel = [b.journey?.destination_country, b.journey?.destination_city].filter(Boolean).join(' ');
+  const dateLabel = b.journey?.starts_at ? new Date(b.journey.starts_at).toLocaleDateString('ko-KR') : '미정';
+  const subject = `[NEXT CHAPTER] ${b.journey?.title || ''} 항공권 견적 요청 (${b.group?.name || ''})`;
+  const body = [
+    `${esc(b.provider || '')} 담당자님, 안녕하세요.`,
+    '',
+    `목적지: ${destLabel || '미정'}`,
+    `출발 예정일: ${dateLabel}`,
+    `인원: ${b.pax_count}명 (${b.group?.name || ''})`,
+    '',
+    '위 일정으로 항공권 견적 부탁드립니다.',
+  ].join('\n');
+  const href = `mailto:${agencyEmail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return `<a class="btn-outline" href="${href}" style="display:inline-block;margin-bottom:16px;text-decoration:none">✉ 견적 요청 메일 작성</a>`;
+}
+
+async function loadBookings() {
+  const wrap = document.getElementById('bookings-content');
+  wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+  try {
+    const [{ bookings }, agenciesRes] = await Promise.all([
+      apiFetch('/admin/bookings'),
+      apiFetch('/admin/travel-agencies').catch(() => ({ agencies: [] })),
+    ]);
+    bookingsCache = bookings;
+    const emailByAgencyId = {};
+    (agenciesRes.agencies || []).forEach((a) => { emailByAgencyId[a.id] = a.contact_email; });
+
+    if (!bookings.length) {
+      wrap.innerHTML = '<div class="empty-state">정원이 채워진 조가 아직 없습니다. 매칭 관리에서 조를 완성하면 여기에 자동으로 등록됩니다.</div>';
+      return;
+    }
+
+    const rows = bookings.map((b) => {
+      const destLabel = [b.journey?.destination_country, b.journey?.destination_city].filter(Boolean).join(' · ') || '—';
+      const dateLabel = b.journey?.starts_at ? new Date(b.journey.starts_at).toLocaleDateString('ko-KR') : '-';
+      const refundNote = ['failed', 'cancelled'].includes(b.status) && b.paid_participant_count
+        ? `<br><span style="color:var(--danger, #c0392b)">환불 확인 필요: ${b.paid_participant_count}명 · ${Number(b.paid_total).toLocaleString('ko-KR')}원</span>`
+        : '';
+      const retryBtn = b.status === 'draft'
+        ? `<button type="button" class="link-btn" data-retry-booking="${b.id}">자동 배정 다시 시도</button>`
+        : '';
+      const agencyEmail = emailByAgencyId[b.details?.agency_id];
+      return `
+        <tr>
+          <td>${esc(b.journey?.title || '—')}<br><span style="color:var(--muted)">${esc(destLabel)} · ${dateLabel}</span></td>
+          <td>${esc(b.group?.name || '—')}<br><span style="color:var(--muted)">${b.pax_count}명</span></td>
+          <td>${BOOKING_TYPE_LABEL[b.type] || b.type}</td>
+          <td><span class="badge ${b.status === 'confirmed' ? 'approved' : b.status === 'failed' || b.status === 'cancelled' ? 'rejected' : ''}">${BOOKING_STATUS_LABEL[b.status] || b.status}</span>${refundNote}</td>
+          <td>${esc(b.provider || '-')}</td>
+          <td>${b.cost ? Number(b.cost).toLocaleString('ko-KR') + '원' : '-'}</td>
+          <td>
+            <button type="button" class="link-btn admin-detail-toggle" data-detail-id="booking-${b.id}">관리 ▾</button>
+            ${retryBtn}
+          </td>
+        </tr>
+        <tr class="admin-detail-row" id="detail-booking-${b.id}" style="display:none">
+          <td colspan="7">${bookingMailtoHtml(b, agencyEmail)}${bookingEditFormHtml(b)}</td>
+        </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr><th>Journey</th><th>Group</th><th>Type</th><th>Status</th><th>Provider</th><th>Cost</th><th>Actions</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+
+    wrap.querySelectorAll('.admin-detail-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const row = document.getElementById(`detail-${btn.dataset.detailId}`);
+        const isOpen = row.style.display !== 'none';
+        row.style.display = isOpen ? 'none' : 'table-row';
+        btn.textContent = isOpen ? '관리 ▾' : '접기 ▴';
+      });
+    });
+
+    wrap.querySelectorAll('[data-retry-booking]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/bookings/${btn.dataset.retryBooking}/retry`, { method: 'POST' });
+          await loadBookings();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
+    wrap.querySelectorAll('.booking-edit-form').forEach((form) => {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = form.querySelector('.form-msg');
+        msg.textContent = '';
+        msg.className = 'form-msg';
+        try {
+          await apiFetch(`/admin/bookings/${form.dataset.bookingId}`, {
+            method: 'PATCH',
+            body: {
+              status: form.status.value,
+              provider: form.provider.value.trim() || null,
+              cost: form.cost.value ? Number(form.cost.value) : null,
+              confirmation_no: form.confirmation_no.value.trim() || null,
+            },
+          });
+          await loadBookings();
+        } catch (err) {
+          msg.textContent = err.message;
+          msg.className = 'form-msg error';
+        }
+      });
+    });
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
+document.getElementById('bookings-sub-tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-bookings-tab]');
+  if (!btn) return;
+  document.querySelectorAll('#bookings-sub-tabs button').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('bookings-list-panel').style.display = btn.dataset.bookingsTab === 'list' ? '' : 'none';
+  document.getElementById('lodging-partners-panel').style.display = btn.dataset.bookingsTab === 'partners' ? '' : 'none';
+  document.getElementById('travel-agencies-panel').style.display = btn.dataset.bookingsTab === 'agencies' ? '' : 'none';
+  if (btn.dataset.bookingsTab === 'partners' && !lodgingPartnersLoaded) {
+    lodgingPartnersLoaded = true;
+    loadLodgingPartners();
+  }
+  if (btn.dataset.bookingsTab === 'agencies' && !travelAgenciesLoaded) {
+    travelAgenciesLoaded = true;
+    loadTravelAgencies();
+  }
+});
+
+let lodgingPartnersCache = [];
+let lodgingPartnersLoaded = false;
+
+function lodgingPartnerFormHtml(p) {
+  const partner = p || {};
+  const isEdit = Boolean(partner.id);
+  return `
+    <div class="itin-editor-panel" id="lodging-partner-form-panel">
+      <div class="itin-editor-head">
+        <h3>${isEdit ? '숙소 파트너 수정' : '새 숙소 파트너 추가'}</h3>
+        <button type="button" id="lodging-partner-form-close" class="link-btn">닫기</button>
+      </div>
+      <form id="lodging-partner-form">
+        <div class="field-row">
+          <div class="field">
+            <label>목적지 국가</label>
+            <input type="text" name="destination_country" required value="${esc(partner.destination_country || '대한민국')}">
+          </div>
+          <div class="field">
+            <label>목적지 도시</label>
+            <input type="text" name="destination_city" required placeholder="예: 가평" value="${esc(partner.destination_city || '')}">
+          </div>
+        </div>
+        <div class="field">
+          <label>업체명</label>
+          <input type="text" name="name" required value="${esc(partner.name || '')}">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>담당자</label>
+            <input type="text" name="contact_name" value="${esc(partner.contact_name || '')}">
+          </div>
+          <div class="field">
+            <label>연락처</label>
+            <input type="text" name="contact_phone" value="${esc(partner.contact_phone || '')}">
+          </div>
+        </div>
+        <div class="field">
+          <label>1조 기준 가격 (원)</label>
+          <input type="number" name="price" min="0" value="${partner.price ?? ''}">
+        </div>
+        <div class="field">
+          <label>메모</label>
+          <textarea name="notes">${esc(partner.notes || '')}</textarea>
+        </div>
+        <div class="field">
+          <label><input type="checkbox" name="active" ${partner.active === false ? '' : 'checked'} style="width:auto;margin-right:8px"> 자동 배정에 사용</label>
+        </div>
+        <div class="itin-editor-actions">
+          <button type="submit" class="btn-outline">저장</button>
+          <span class="form-msg" id="lodging-partner-form-msg"></span>
+        </div>
+      </form>
+    </div>`;
+}
+
+function bindLodgingPartnerForm(partner) {
+  const wrap = document.getElementById('lodging-partner-form-wrap');
+  wrap.innerHTML = lodgingPartnerFormHtml(partner);
+  const form = document.getElementById('lodging-partner-form');
+  const msg = document.getElementById('lodging-partner-form-msg');
+
+  document.getElementById('lodging-partner-form-close').addEventListener('click', () => { wrap.innerHTML = ''; });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+    msg.className = 'form-msg';
+
+    const payload = {
+      destination_country: form.destination_country.value.trim(),
+      destination_city: form.destination_city.value.trim(),
+      name: form.name.value.trim(),
+      contact_name: form.contact_name.value.trim() || null,
+      contact_phone: form.contact_phone.value.trim() || null,
+      price: form.price.value ? Number(form.price.value) : null,
+      notes: form.notes.value.trim() || null,
+      active: form.active.checked,
+    };
+    if (!payload.destination_country || !payload.destination_city || !payload.name) {
+      msg.textContent = '목적지 국가·도시와 업체명을 입력해주세요.';
+      msg.className = 'form-msg error';
+      return;
+    }
+
+    try {
+      if (partner && partner.id) {
+        await apiFetch(`/admin/lodging-partners/${partner.id}`, { method: 'PUT', body: payload });
+      } else {
+        await apiFetch('/admin/lodging-partners', { method: 'POST', body: payload });
+      }
+      msg.textContent = '저장되었습니다.';
+      msg.className = 'form-msg success';
+      wrap.innerHTML = '';
+      await loadLodgingPartners();
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = 'form-msg error';
+    }
+  });
+}
+
+document.getElementById('lodging-partner-new-btn').addEventListener('click', () => {
+  bindLodgingPartnerForm(null);
+  document.getElementById('lodging-partner-form-panel').scrollIntoView({ behavior: 'smooth' });
+});
+
+async function loadLodgingPartners() {
+  const wrap = document.getElementById('lodging-partners-content');
+  wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+  try {
+    const { partners } = await apiFetch('/admin/lodging-partners');
+    lodgingPartnersCache = partners;
+
+    if (!partners.length) {
+      wrap.innerHTML = '<div class="empty-state">등록된 숙소 파트너가 없습니다.</div>';
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div class="journey-admin-list">
+        ${partners.map((p) => `
+          <div class="journey-admin-row">
+            <div>
+              <h4>${esc(p.name)} <span class="badge ${p.active ? 'approved' : ''}">${p.active ? '사용중' : '비활성'}</span></h4>
+              <p>${esc(p.destination_country)} · ${esc(p.destination_city)}${p.price ? ' · ' + Number(p.price).toLocaleString('ko-KR') + '원' : ''}</p>
+            </div>
+            <div class="admin-actions">
+              <button type="button" class="btn-outline" data-edit-partner="${p.id}">수정</button>
+              <button type="button" class="reject" data-delete-partner="${p.id}">삭제</button>
+            </div>
+          </div>`).join('')}
+      </div>`;
+
+    wrap.querySelectorAll('[data-edit-partner]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const partner = lodgingPartnersCache.find((p) => p.id === btn.dataset.editPartner);
+        if (!partner) return;
+        bindLodgingPartnerForm(partner);
+        document.getElementById('lodging-partner-form-panel').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    wrap.querySelectorAll('[data-delete-partner]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('이 숙소 파트너를 삭제하시겠습니까?')) return;
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/lodging-partners/${btn.dataset.deletePartner}`, { method: 'DELETE' });
+          await loadLodgingPartners();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
+let travelAgenciesCache = [];
+let travelAgenciesLoaded = false;
+
+function travelAgencyFormHtml(a) {
+  const agency = a || {};
+  const isEdit = Boolean(agency.id);
+  return `
+    <div class="itin-editor-panel" id="travel-agency-form-panel">
+      <div class="itin-editor-head">
+        <h3>${isEdit ? '여행사 파트너 수정' : '새 여행사 파트너 추가'}</h3>
+        <button type="button" id="travel-agency-form-close" class="link-btn">닫기</button>
+      </div>
+      <form id="travel-agency-form">
+        <div class="field">
+          <label>목적지 국가</label>
+          <input type="text" name="destination_country" required placeholder="예: 일본" value="${esc(agency.destination_country || '')}">
+        </div>
+        <div class="field">
+          <label>여행사명</label>
+          <input type="text" name="name" required value="${esc(agency.name || '')}">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>담당자</label>
+            <input type="text" name="contact_name" value="${esc(agency.contact_name || '')}">
+          </div>
+          <div class="field">
+            <label>연락처</label>
+            <input type="text" name="contact_phone" value="${esc(agency.contact_phone || '')}">
+          </div>
+        </div>
+        <div class="field">
+          <label>이메일</label>
+          <input type="email" name="contact_email" value="${esc(agency.contact_email || '')}">
+        </div>
+        <div class="field">
+          <label>메모</label>
+          <textarea name="notes">${esc(agency.notes || '')}</textarea>
+        </div>
+        <div class="field">
+          <label><input type="checkbox" name="active" ${agency.active === false ? '' : 'checked'} style="width:auto;margin-right:8px"> 자동 견적 요청에 사용</label>
+        </div>
+        <div class="itin-editor-actions">
+          <button type="submit" class="btn-outline">저장</button>
+          <span class="form-msg" id="travel-agency-form-msg"></span>
+        </div>
+      </form>
+    </div>`;
+}
+
+function bindTravelAgencyForm(agency) {
+  const wrap = document.getElementById('travel-agency-form-wrap');
+  wrap.innerHTML = travelAgencyFormHtml(agency);
+  const form = document.getElementById('travel-agency-form');
+  const msg = document.getElementById('travel-agency-form-msg');
+
+  document.getElementById('travel-agency-form-close').addEventListener('click', () => { wrap.innerHTML = ''; });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+    msg.className = 'form-msg';
+
+    const payload = {
+      destination_country: form.destination_country.value.trim(),
+      name: form.name.value.trim(),
+      contact_name: form.contact_name.value.trim() || null,
+      contact_phone: form.contact_phone.value.trim() || null,
+      contact_email: form.contact_email.value.trim() || null,
+      notes: form.notes.value.trim() || null,
+      active: form.active.checked,
+    };
+    if (!payload.destination_country || !payload.name) {
+      msg.textContent = '목적지 국가와 여행사명을 입력해주세요.';
+      msg.className = 'form-msg error';
+      return;
+    }
+
+    try {
+      if (agency && agency.id) {
+        await apiFetch(`/admin/travel-agencies/${agency.id}`, { method: 'PUT', body: payload });
+      } else {
+        await apiFetch('/admin/travel-agencies', { method: 'POST', body: payload });
+      }
+      msg.textContent = '저장되었습니다.';
+      msg.className = 'form-msg success';
+      wrap.innerHTML = '';
+      await loadTravelAgencies();
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = 'form-msg error';
+    }
+  });
+}
+
+document.getElementById('travel-agency-new-btn').addEventListener('click', () => {
+  bindTravelAgencyForm(null);
+  document.getElementById('travel-agency-form-panel').scrollIntoView({ behavior: 'smooth' });
+});
+
+async function loadTravelAgencies() {
+  const wrap = document.getElementById('travel-agencies-content');
+  wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+  try {
+    const { agencies } = await apiFetch('/admin/travel-agencies');
+    travelAgenciesCache = agencies;
+
+    if (!agencies.length) {
+      wrap.innerHTML = '<div class="empty-state">등록된 여행사 파트너가 없습니다.</div>';
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div class="journey-admin-list">
+        ${agencies.map((a) => `
+          <div class="journey-admin-row">
+            <div>
+              <h4>${esc(a.name)} <span class="badge ${a.active ? 'approved' : ''}">${a.active ? '사용중' : '비활성'}</span></h4>
+              <p>${esc(a.destination_country)}${a.contact_email ? ' · ' + esc(a.contact_email) : ''}${a.contact_phone ? ' · ' + esc(a.contact_phone) : ''}</p>
+            </div>
+            <div class="admin-actions">
+              <button type="button" class="btn-outline" data-edit-agency="${a.id}">수정</button>
+              <button type="button" class="reject" data-delete-agency="${a.id}">삭제</button>
+            </div>
+          </div>`).join('')}
+      </div>`;
+
+    wrap.querySelectorAll('[data-edit-agency]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const agency = travelAgenciesCache.find((a) => a.id === btn.dataset.editAgency);
+        if (!agency) return;
+        bindTravelAgencyForm(agency);
+        document.getElementById('travel-agency-form-panel').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    wrap.querySelectorAll('[data-delete-agency]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('이 여행사 파트너를 삭제하시겠습니까?')) return;
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/travel-agencies/${btn.dataset.deleteAgency}`, { method: 'DELETE' });
+          await loadTravelAgencies();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
 async function loadRevenue() {
   const wrap = document.getElementById('revenue-content');
   wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
@@ -1164,11 +1669,13 @@ async function loadRevenue() {
         <div class="revenue-stat"><span class="revenue-stat-label">총 결제액</span><span class="revenue-stat-value">${summary.total_paid.toLocaleString('ko-KR')}원</span></div>
         <div class="revenue-stat"><span class="revenue-stat-label">총 환불액</span><span class="revenue-stat-value">${summary.total_refunded.toLocaleString('ko-KR')}원</span></div>
         <div class="revenue-stat"><span class="revenue-stat-label">순매출</span><span class="revenue-stat-value">${summary.net_revenue.toLocaleString('ko-KR')}원</span></div>
+        <div class="revenue-stat"><span class="revenue-stat-label">확정 예약 비용</span><span class="revenue-stat-value">${summary.total_booking_cost.toLocaleString('ko-KR')}원</span></div>
+        <div class="revenue-stat"><span class="revenue-stat-label">예상 마진</span><span class="revenue-stat-value">${summary.estimated_margin.toLocaleString('ko-KR')}원</span></div>
       </div>`;
 
     const byJourneyHtml = byJourney.length
-      ? `<table class="admin-table"><thead><tr><th>Journey</th><th>결제 건수</th><th>금액</th></tr></thead><tbody>
-          ${byJourney.map((j) => `<tr><td>${esc(j.title)}</td><td>${j.count}</td><td>${j.amount.toLocaleString('ko-KR')}원</td></tr>`).join('')}
+      ? `<table class="admin-table"><thead><tr><th>Journey</th><th>결제 건수</th><th>금액</th><th>예약 비용</th><th>마진</th></tr></thead><tbody>
+          ${byJourney.map((j) => `<tr><td>${esc(j.title)}</td><td>${j.count}</td><td>${j.amount.toLocaleString('ko-KR')}원</td><td>${(j.booking_cost || 0).toLocaleString('ko-KR')}원</td><td>${(j.margin ?? j.amount).toLocaleString('ko-KR')}원</td></tr>`).join('')}
         </tbody></table>`
       : '<div class="empty-state">아직 결제 데이터가 없습니다. 토스페이먼츠 연동 후 이 화면에 매출이 표시됩니다.</div>';
 
@@ -1321,13 +1828,15 @@ const adminPanels = {
   story: document.getElementById('panel-story'),
   members: document.getElementById('panel-members'),
   matching: document.getElementById('panel-matching'),
+  bookings: document.getElementById('panel-bookings'),
   revenue: document.getElementById('panel-revenue'),
   permissions: document.getElementById('panel-permissions'),
 };
-const ADMIN_TITLE_LABEL = { applications: 'Applications', journeys: 'Journeys', story: 'Story', members: 'Members', matching: 'Matching', revenue: 'Revenue', permissions: 'Permissions' };
+const ADMIN_TITLE_LABEL = { applications: 'Applications', journeys: 'Journeys', story: 'Story', members: 'Members', matching: 'Matching', bookings: 'Bookings', revenue: 'Revenue', permissions: 'Permissions' };
 
 let membersLoaded = false;
 let matchingLoaded = false;
+let bookingsLoaded = false;
 let revenueLoaded = false;
 let permissionsLoaded = false;
 
@@ -1365,6 +1874,10 @@ adminSectionTabs.forEach((btn) => {
     if (btn.dataset.section === 'matching' && !matchingLoaded) {
       matchingLoaded = true;
       loadMatchingJourneyOptions();
+    }
+    if (btn.dataset.section === 'bookings' && !bookingsLoaded) {
+      bookingsLoaded = true;
+      loadBookings();
     }
     if (btn.dataset.section === 'revenue' && !revenueLoaded) {
       revenueLoaded = true;

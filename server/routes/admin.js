@@ -24,7 +24,7 @@ async function uploadStoryImage(folder, id, file) {
   return supabaseAdmin.storage.from(STORY_IMAGES_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-const JOURNEY_FIELDS = ['slug', 'title', 'type', 'duration', 'capacity_male', 'capacity_female', 'price', 'status', 'summary', 'description', 'image_url', 'starts_at', 'itinerary'];
+const JOURNEY_FIELDS = ['slug', 'title', 'type', 'duration', 'capacity_male', 'capacity_female', 'price', 'status', 'summary', 'description', 'image_url', 'starts_at', 'itinerary', 'destination_country', 'destination_city'];
 
 function pickJourneyFields(body) {
   const out = {};
@@ -248,6 +248,108 @@ router.get('/journeys/:id/roster', async (req, res) => {
   });
 });
 
+async function tryAutoAssignLodging(journey, bookingId) {
+  if (journey.type !== 'domestic' || !journey.destination_country || !journey.destination_city) return;
+
+  const { data: partners } = await supabaseAdmin
+    .from('lodging_partners')
+    .select('*')
+    .eq('active', true)
+    .eq('destination_country', journey.destination_country)
+    .eq('destination_city', journey.destination_city)
+    .order('sort_order', { ascending: true });
+  if (!partners || !partners.length) return;
+
+  // A partner is treated as private-use-only per group, so it can't host two groups
+  // departing on the same date. Same-date confirmed bookings mark it busy.
+  const { data: confirmedLodging } = await supabaseAdmin
+    .from('bookings')
+    .select('provider, journey:journeys(starts_at)')
+    .eq('type', 'lodging')
+    .eq('status', 'confirmed');
+
+  const busyProviderNames = new Set(
+    (confirmedLodging || [])
+      .filter((b) => journey.starts_at && b.journey?.starts_at === journey.starts_at)
+      .map((b) => b.provider)
+  );
+
+  const available = partners.find((p) => !busyProviderNames.has(p.name));
+  if (!available) return;
+
+  await supabaseAdmin
+    .from('bookings')
+    .update({
+      status: 'confirmed',
+      provider: available.name,
+      cost: available.price,
+      confirmation_no: `AUTO-${bookingId.slice(0, 8).toUpperCase()}`,
+      details: { auto_assigned: true, partner_id: available.id },
+    })
+    .eq('id', bookingId);
+}
+
+async function tryRequestFlightQuote(journey, bookingId) {
+  if (journey.type !== 'overseas' || !journey.destination_country) return;
+
+  const { data: agencies } = await supabaseAdmin
+    .from('travel_agencies')
+    .select('*')
+    .eq('active', true)
+    .eq('destination_country', journey.destination_country)
+    .order('sort_order', { ascending: true })
+    .limit(1);
+  if (!agencies || !agencies.length) return;
+
+  const agency = agencies[0];
+  await supabaseAdmin
+    .from('bookings')
+    .update({
+      status: 'requested',
+      provider: agency.name,
+      details: { agency_id: agency.id, requested_at: new Date().toISOString() },
+    })
+    .eq('id', bookingId);
+}
+
+async function maybeCreateBookings(journeyId, groupId) {
+  const { data: journey } = await supabaseAdmin
+    .from('journeys')
+    .select('id, type, capacity_male, capacity_female, destination_country, destination_city, starts_at')
+    .eq('id', journeyId)
+    .single();
+  if (!journey) return;
+
+  const { data: members } = await supabaseAdmin
+    .from('applications')
+    .select('id, profile:profiles(gender)')
+    .eq('group_id', groupId)
+    .eq('status', 'approved');
+
+  const maleCount = (members || []).filter((m) => m.profile?.gender === 'male').length;
+  const femaleCount = (members || []).filter((m) => m.profile?.gender === 'female').length;
+  if (maleCount < journey.capacity_male || femaleCount < journey.capacity_female) return;
+
+  const { data: existing } = await supabaseAdmin.from('bookings').select('type').eq('group_id', groupId);
+  const existingTypes = new Set((existing || []).map((b) => b.type));
+
+  const paxCount = maleCount + femaleCount;
+  const rows = [];
+  if (!existingTypes.has('lodging')) {
+    rows.push({ journey_id: journeyId, group_id: groupId, type: 'lodging', pax_count: paxCount });
+  }
+  if (journey.type === 'overseas' && !existingTypes.has('flight')) {
+    rows.push({ journey_id: journeyId, group_id: groupId, type: 'flight', pax_count: paxCount });
+  }
+  if (!rows.length) return;
+
+  const { data: inserted } = await supabaseAdmin.from('bookings').insert(rows).select();
+  const lodgingRow = (inserted || []).find((b) => b.type === 'lodging');
+  const flightRow = (inserted || []).find((b) => b.type === 'flight');
+  if (lodgingRow) await tryAutoAssignLodging(journey, lodgingRow.id);
+  if (flightRow) await tryRequestFlightQuote(journey, flightRow.id);
+}
+
 router.post('/journeys/:id/groups', async (req, res) => {
   const { application_ids: applicationIds } = req.body || {};
   if (!Array.isArray(applicationIds) || !applicationIds.length) {
@@ -273,6 +375,7 @@ router.post('/journeys/:id/groups', async (req, res) => {
     .eq('journey_id', req.params.id);
   if (updateError) return res.status(500).json({ error: '팀원 배정에 실패했습니다.' });
 
+  await maybeCreateBookings(req.params.id, group.id);
   res.status(201).json({ group });
 });
 
@@ -286,6 +389,11 @@ router.patch('/groups/:groupId', async (req, res) => {
   if (Array.isArray(removeIds) && removeIds.length) {
     const { error } = await supabaseAdmin.from('applications').update({ group_id: null }).in('id', removeIds).eq('group_id', req.params.groupId);
     if (error) return res.status(500).json({ error: '팀원 제외에 실패했습니다.' });
+  }
+
+  if (Array.isArray(addIds) && addIds.length) {
+    const { data: group } = await supabaseAdmin.from('journey_groups').select('journey_id').eq('id', req.params.groupId).single();
+    if (group) await maybeCreateBookings(group.journey_id, req.params.groupId);
   }
 
   res.json({ ok: true });
@@ -404,6 +512,24 @@ router.get('/revenue', async (req, res) => {
     byJourneyMap[key].count += 1;
   });
 
+  const { data: confirmedBookings } = await supabaseAdmin
+    .from('bookings')
+    .select('journey_id, cost')
+    .eq('status', 'confirmed')
+    .not('cost', 'is', null);
+
+  const bookingCostByJourney = {};
+  (confirmedBookings || []).forEach((b) => {
+    bookingCostByJourney[b.journey_id] = (bookingCostByJourney[b.journey_id] || 0) + Number(b.cost);
+  });
+  const totalBookingCost = Object.values(bookingCostByJourney).reduce((sum, c) => sum + c, 0);
+
+  Object.keys(byJourneyMap).forEach((key) => {
+    const row = byJourneyMap[key];
+    row.booking_cost = bookingCostByJourney[row.journey_id] || 0;
+    row.margin = row.amount - row.booking_cost;
+  });
+
   let transactions = data;
   if (q) {
     const needle = q.trim().replace(/-/g, '');
@@ -419,6 +545,8 @@ router.get('/revenue', async (req, res) => {
       total_paid: totalPaid,
       total_refunded: totalRefunded,
       net_revenue: totalPaid - totalRefunded,
+      total_booking_cost: totalBookingCost,
+      estimated_margin: totalPaid - totalRefunded - totalBookingCost,
       paid_count: paid.length,
       refunded_count: refunded.length,
     },
@@ -543,6 +671,144 @@ router.post('/story-reviews/:id/image', storyImageUpload.single('image'), async 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+const BOOKING_SELECT = '*, journey:journeys(id, title, type, destination_country, destination_city, starts_at), group:journey_groups(id, name)';
+const BOOKING_FIELDS = ['status', 'provider', 'cost', 'confirmation_no', 'details'];
+const BOOKING_STATUSES = ['draft', 'requested', 'confirmed', 'failed', 'cancelled'];
+
+async function attachBookingPaymentSummary(bookings) {
+  const groupIds = [...new Set(bookings.map((b) => b.group_id))];
+  if (!groupIds.length) return bookings;
+
+  const { data: members } = await supabaseAdmin
+    .from('applications')
+    .select('group_id, user_id, journey_id')
+    .in('group_id', groupIds)
+    .eq('status', 'approved');
+
+  const userIds = [...new Set((members || []).map((m) => m.user_id))];
+  const { data: payments } = userIds.length
+    ? await supabaseAdmin.from('payments').select('user_id, journey_id, amount').in('user_id', userIds).eq('status', 'paid')
+    : { data: [] };
+
+  return bookings.map((b) => {
+    const memberUserIds = new Set((members || []).filter((m) => m.group_id === b.group_id).map((m) => m.user_id));
+    const relevant = (payments || []).filter((p) => memberUserIds.has(p.user_id) && p.journey_id === b.journey_id);
+    return { ...b, paid_participant_count: relevant.length, paid_total: relevant.reduce((sum, p) => sum + p.amount, 0) };
+  });
+}
+
+router.get('/bookings', async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('bookings')
+    .select(BOOKING_SELECT)
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: '예약 목록을 불러오지 못했습니다.' });
+  res.json({ bookings: await attachBookingPaymentSummary(data) });
+});
+
+router.patch('/bookings/:id', async (req, res) => {
+  const payload = pickFields(req.body || {}, BOOKING_FIELDS);
+  if (payload.status && !BOOKING_STATUSES.includes(payload.status)) {
+    return res.status(400).json({ error: '올바르지 않은 상태값입니다.' });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('bookings')
+    .update(payload)
+    .eq('id', req.params.id)
+    .select(BOOKING_SELECT)
+    .single();
+
+  if (error) return res.status(400).json({ error: error.message });
+  const [withPayments] = await attachBookingPaymentSummary([data]);
+  res.json({ booking: withPayments });
+});
+
+router.post('/bookings/:id/retry', async (req, res) => {
+  const { data: booking } = await supabaseAdmin.from('bookings').select('*, journey:journeys(*)').eq('id', req.params.id).single();
+  if (!booking) return res.status(404).json({ error: '예약을 찾을 수 없습니다.' });
+
+  if (booking.type === 'lodging') await tryAutoAssignLodging(booking.journey, booking.id);
+  if (booking.type === 'flight') await tryRequestFlightQuote(booking.journey, booking.id);
+
+  const { data, error } = await supabaseAdmin.from('bookings').select(BOOKING_SELECT).eq('id', req.params.id).single();
+  if (error) return res.status(500).json({ error: '예약 정보를 다시 불러오지 못했습니다.' });
+  const [withPayments] = await attachBookingPaymentSummary([data]);
+  res.json({ booking: withPayments });
+});
+
+const LODGING_PARTNER_FIELDS = ['destination_country', 'destination_city', 'name', 'contact_name', 'contact_phone', 'price', 'notes', 'active', 'sort_order'];
+
+router.get('/lodging-partners', async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('lodging_partners')
+    .select('*')
+    .order('destination_city', { ascending: true })
+    .order('sort_order', { ascending: true });
+  if (error) return res.status(500).json({ error: '숙소 파트너 목록을 불러오지 못했습니다.' });
+  res.json({ partners: data });
+});
+
+router.post('/lodging-partners', async (req, res) => {
+  const payload = pickFields(req.body || {}, LODGING_PARTNER_FIELDS);
+  if (!payload.destination_country || !payload.destination_city || !payload.name) {
+    return res.status(400).json({ error: '목적지 국가·도시와 업체명은 필수입니다.' });
+  }
+
+  const { data, error } = await supabaseAdmin.from('lodging_partners').insert(payload).select().single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(201).json({ partner: data });
+});
+
+router.put('/lodging-partners/:id', async (req, res) => {
+  const payload = pickFields(req.body || {}, LODGING_PARTNER_FIELDS);
+  const { data, error } = await supabaseAdmin.from('lodging_partners').update(payload).eq('id', req.params.id).select().single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ partner: data });
+});
+
+router.delete('/lodging-partners/:id', async (req, res) => {
+  const { error } = await supabaseAdmin.from('lodging_partners').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: '삭제에 실패했습니다.' });
+  res.json({ ok: true });
+});
+
+const TRAVEL_AGENCY_FIELDS = ['destination_country', 'name', 'contact_name', 'contact_phone', 'contact_email', 'notes', 'active', 'sort_order'];
+
+router.get('/travel-agencies', async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('travel_agencies')
+    .select('*')
+    .order('destination_country', { ascending: true })
+    .order('sort_order', { ascending: true });
+  if (error) return res.status(500).json({ error: '여행사 파트너 목록을 불러오지 못했습니다.' });
+  res.json({ agencies: data });
+});
+
+router.post('/travel-agencies', async (req, res) => {
+  const payload = pickFields(req.body || {}, TRAVEL_AGENCY_FIELDS);
+  if (!payload.destination_country || !payload.name) {
+    return res.status(400).json({ error: '목적지 국가와 여행사명은 필수입니다.' });
+  }
+
+  const { data, error } = await supabaseAdmin.from('travel_agencies').insert(payload).select().single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(201).json({ agency: data });
+});
+
+router.put('/travel-agencies/:id', async (req, res) => {
+  const payload = pickFields(req.body || {}, TRAVEL_AGENCY_FIELDS);
+  const { data, error } = await supabaseAdmin.from('travel_agencies').update(payload).eq('id', req.params.id).select().single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ agency: data });
+});
+
+router.delete('/travel-agencies/:id', async (req, res) => {
+  const { error } = await supabaseAdmin.from('travel_agencies').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: '삭제에 실패했습니다.' });
+  res.json({ ok: true });
 });
 
 module.exports = router;
