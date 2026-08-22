@@ -239,9 +239,17 @@ function journeyFormHtml(j) {
             <input type="date" name="starts_at" value="${journey.starts_at || ''}">
           </div>
         </div>
+        <div class="field">
+          <label>공개 상태</label>
+          <select name="status">
+            <option value="draft" ${(!journey.status || journey.status === 'draft') ? 'selected' : ''}>임시저장 (비공개)</option>
+            <option value="coming_soon" ${journey.status === 'coming_soon' ? 'selected' : ''}>오픈예정 (대기 신청 가능)</option>
+            <option value="open" ${journey.status === 'open' ? 'selected' : ''}>공개중</option>
+            <option value="closed" ${journey.status === 'closed' ? 'selected' : ''}>마감</option>
+          </select>
+        </div>
         <div class="itin-editor-actions">
-          <button type="submit" data-status="draft" class="btn-outline">임시저장</button>
-          <button type="submit" data-status="open" class="btn">공개 저장</button>
+          <button type="submit" class="btn-outline">저장</button>
           <span class="form-msg" id="journey-form-msg"></span>
         </div>
       </form>
@@ -263,11 +271,6 @@ function bindJourneyForm(journey) {
 
   document.getElementById('journey-form-close').addEventListener('click', () => { wrap.innerHTML = ''; });
 
-  let submittedStatus = 'draft';
-  form.querySelectorAll('button[type="submit"]').forEach((btn) => {
-    btn.addEventListener('click', () => { submittedStatus = btn.dataset.status; });
-  });
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     msg.textContent = '';
@@ -284,7 +287,7 @@ function bindJourneyForm(journey) {
       capacity_female: Number(form.capacity_female.value) || 0,
       price: form.price.value ? Number(form.price.value) : null,
       starts_at: form.starts_at.value || null,
-      status: submittedStatus,
+      status: form.status.value,
     };
 
     if (!payload.title) {

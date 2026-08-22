@@ -41,9 +41,11 @@ async function loadJourney() {
     document.getElementById('j-price').textContent = formatPrice(journey.price);
     document.getElementById('j-start').textContent = formatDate(journey.starts_at);
 
-    if (journey.status !== 'open') {
+    if (journey.status === 'closed') {
       applyBtn.disabled = true;
-      applyBtn.textContent = journey.status === 'closed' ? '마감되었습니다' : '오픈 예정입니다';
+      applyBtn.textContent = '마감되었습니다';
+    } else if (journey.status === 'coming_soon') {
+      applyBtn.textContent = '대기 신청하기';
     }
   } catch (err) {
     document.getElementById('journey-root').innerHTML = `<div class="empty-state">${err.message}</div>`;

@@ -15,7 +15,7 @@ router.post('/', requireAuth, async (req, res) => {
     .single();
 
   if (journeyError || !journey) return res.status(404).json({ error: '여행을 찾을 수 없습니다.' });
-  if (journey.status !== 'open') return res.status(400).json({ error: '현재 신청할 수 없는 여행입니다.' });
+  if (!['open', 'coming_soon'].includes(journey.status)) return res.status(400).json({ error: '현재 신청할 수 없는 여행입니다.' });
 
   const { data, error } = await supabaseAdmin
     .from('applications')
