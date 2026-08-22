@@ -4,6 +4,7 @@ const { supabaseAdmin } = require('../lib/supabase');
 const { requireAuth, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 const { getSignedUrl, getSignedUrls } = require('../lib/storage');
 const { VERIFY_TYPES } = require('../lib/verificationDocs');
+const { findAutoMatchTeams } = require('../lib/matching');
 
 const router = express.Router();
 router.use(requireAuth, requireAdmin);
@@ -246,6 +247,32 @@ router.get('/journeys/:id/roster', async (req, res) => {
       other: unassigned.filter((a) => a.profile?.gender !== 'male' && a.profile?.gender !== 'female'),
     },
   });
+});
+
+const MATCH_PROFILE_FIELDS = 'id, full_name, birth_year, region, region_detail, degree, university, job_major, job_minor, company_name, salary, asset';
+
+router.get('/journeys/:id/auto-match', async (req, res) => {
+  const { data: journey, error: journeyError } = await supabaseAdmin
+    .from('journeys')
+    .select('id, title, capacity_male, capacity_female')
+    .eq('id', req.params.id)
+    .single();
+  if (journeyError || !journey) return res.status(404).json({ error: '여행을 찾을 수 없습니다.' });
+
+  const { data: rawApplications, error: appsError } = await supabaseAdmin
+    .from('applications')
+    .select(`id, created_at, profile:profiles(${MATCH_PROFILE_FIELDS}, gender)`)
+    .eq('journey_id', journey.id)
+    .eq('status', 'approved')
+    .is('group_id', null);
+  if (appsError) return res.status(500).json({ error: '신청자 목록을 불러오지 못했습니다.' });
+
+  const toPerson = (app) => ({ id: app.id, created_at: app.created_at, ...app.profile });
+  const males = (rawApplications || []).filter((a) => a.profile?.gender === 'male').map(toPerson);
+  const females = (rawApplications || []).filter((a) => a.profile?.gender === 'female').map(toPerson);
+
+  const result = findAutoMatchTeams(males, females, journey.capacity_male, journey.capacity_female);
+  res.json({ journey, ...result });
 });
 
 async function tryAutoAssignLodging(journey, bookingId) {

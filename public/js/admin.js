@@ -65,7 +65,7 @@ function renderApplicantDetail(p) {
           <span>학력</span><span>${esc([p.degree, p.university].filter(Boolean).join(' · ') || '—')}</span>
           <span>직업</span><span>${esc(jobLabel(p))}</span>
           <span>회사명</span><span>${esc(p.company_name || '—')}</span>
-          <span>연봉</span><span>${p.salary ? esc(p.salary) + '만원' : '—'}</span>
+          <span>연봉</span><span>${esc(p.salary || '—')}</span>
           <span>자산</span><span>${esc(p.asset || '—')}</span>
         </div>
       </div>
@@ -992,6 +992,7 @@ async function loadMatchingJourneyOptions() {
 
 document.getElementById('matching-journey-select').addEventListener('change', (e) => {
   currentMatchingJourneyId = e.target.value;
+  document.getElementById('auto-match-content').innerHTML = '';
   loadMatchingRoster();
 });
 
@@ -1156,6 +1157,71 @@ async function loadMatchingRoster() {
     wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
   }
 }
+
+function autoMatchPersonLine(p) {
+  const age = ageFromBirthYear(p.birth_year);
+  return `${esc(p.full_name || '—')}${age ? ' · ' + age + '세' : ''} · ${esc(p.region || '-')} · ${esc(p.degree || '-')} · ${esc(p.university || '학교 미입력')} · ${esc(p.job_minor || p.job_major || '-')} · ${esc(p.salary || '-')} · ${esc(p.asset || '-')}`;
+}
+
+let autoMatchTeamsCache = [];
+
+async function runAutoMatch() {
+  const wrap = document.getElementById('auto-match-content');
+  if (!currentMatchingJourneyId) return;
+  wrap.innerHTML = '<div class="empty-state">계산 중…</div>';
+  try {
+    const { teams, leftoverMales, leftoverFemales, bestPartial } = await apiFetch(`/admin/journeys/${currentMatchingJourneyId}/auto-match`);
+    autoMatchTeamsCache = teams;
+
+    if (!teams.length) {
+      const partialNote = bestPartial && (bestPartial.M.length || bestPartial.F.length)
+        ? `<p style="margin-top:12px;font-size:13px;color:var(--muted)">조건을 모두 만족하는 가장 큰 조합: 남 ${bestPartial.M.length}명 · 여 ${bestPartial.F.length}명 (정원 미달이라 확정할 수 없습니다)</p>`
+        : '';
+      wrap.innerHTML = `<div class="empty-state">정원을 모두 채우는 조합을 찾지 못했습니다.</div>${partialNote}`;
+      return;
+    }
+
+    const teamsHtml = teams.map((team, i) => `
+      <div class="journey-admin-row" style="align-items:flex-start;flex-direction:column;gap:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+          <h4>추천 팀 ${i + 1} (남 ${team.males.length} · 여 ${team.females.length})</h4>
+          <button type="button" class="btn-outline" data-confirm-auto-team="${i}">이 팀으로 확정</button>
+        </div>
+        <div style="font-size:13px;line-height:1.9">
+          <strong>남성</strong><br>
+          ${team.males.map(autoMatchPersonLine).join('<br>')}
+          <br><strong>여성</strong><br>
+          ${team.females.map(autoMatchPersonLine).join('<br>')}
+        </div>
+      </div>`).join('');
+
+    const leftoverNote = (leftoverMales.length || leftoverFemales.length)
+      ? `<p style="margin-top:16px;font-size:13px;color:var(--muted)">매칭되지 않은 대기 인원: 남 ${leftoverMales.length}명 · 여 ${leftoverFemales.length}명</p>`
+      : '';
+
+    wrap.innerHTML = `<div class="journey-admin-list">${teamsHtml}</div>${leftoverNote}`;
+
+    wrap.querySelectorAll('[data-confirm-auto-team]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const team = autoMatchTeamsCache[Number(btn.dataset.confirmAutoTeam)];
+        const ids = [...team.males, ...team.females].map((p) => p.id);
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/journeys/${currentMatchingJourneyId}/groups`, { method: 'POST', body: { application_ids: ids } });
+          await loadMatchingRoster();
+          await runAutoMatch();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
+document.getElementById('auto-match-run-btn').addEventListener('click', runAutoMatch);
 
 const BOOKING_STATUS_LABEL = { draft: '예약 필요', requested: '요청됨', confirmed: '확정됨', failed: '실패', cancelled: '취소됨' };
 const BOOKING_TYPE_LABEL = { lodging: '숙박권', flight: '항공권' };

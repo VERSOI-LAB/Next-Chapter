@@ -435,12 +435,7 @@ function renderStepFields(step, body) {
     companyInput.oninput = (e) => { selfProfile.company_name = e.target.value; };
     body.appendChild(fieldRow('회사명', companyInput));
 
-    const salaryInput = document.createElement('input');
-    salaryInput.type = 'number';
-    salaryInput.placeholder = '예: 5000';
-    salaryInput.value = selfProfile.salary || '';
-    salaryInput.oninput = (e) => { selfProfile.salary = e.target.value; };
-    body.appendChild(fieldRow('연봉 (만원)', salaryInput));
+    body.appendChild(fieldRow('연봉', buildSelect(SALARY_BRACKETS, selfProfile.salary, (val) => { selfProfile.salary = val; })));
 
     body.appendChild(fieldRow('자산', buildSelect(ASSET_BRACKETS, selfProfile.asset, (val) => { selfProfile.asset = val; })));
   }
