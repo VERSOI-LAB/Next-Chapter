@@ -1,4 +1,5 @@
 const express = require('express');
+const multer = require('multer');
 const { supabaseAdmin } = require('../lib/supabase');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { getSignedUrl, getSignedUrls } = require('../lib/storage');
@@ -6,6 +7,9 @@ const { VERIFY_TYPES } = require('../lib/verificationDocs');
 
 const router = express.Router();
 router.use(requireAuth, requireAdmin);
+
+const journeyImageUpload = multer({ limits: { fileSize: 8 * 1024 * 1024 } });
+const JOURNEY_IMAGES_BUCKET = 'journey-images';
 
 const JOURNEY_FIELDS = ['slug', 'title', 'type', 'duration', 'capacity_male', 'capacity_female', 'price', 'status', 'summary', 'description', 'image_url', 'starts_at', 'itinerary'];
 
@@ -114,11 +118,22 @@ router.get('/journeys', async (req, res) => {
   res.json({ journeys: data });
 });
 
+function slugify(title) {
+  const base = title
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9가-힣]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `${base || 'journey'}-${Date.now().toString(36)}`;
+}
+
 router.post('/journeys', async (req, res) => {
   const payload = pickJourneyFields(req.body || {});
-  if (!payload.slug || !payload.title || !payload.type) {
-    return res.status(400).json({ error: 'slug, title, type은 필수입니다.' });
+  if (!payload.title || !payload.type) {
+    return res.status(400).json({ error: '제목과 구분은 필수입니다.' });
   }
+  if (!payload.slug) payload.slug = slugify(payload.title);
+  if (!payload.status) payload.status = 'draft';
 
   const { data, error } = await supabaseAdmin.from('journeys').insert(payload).select().single();
   if (error) return res.status(400).json({ error: error.message });
@@ -135,6 +150,49 @@ router.put('/journeys/:id', async (req, res) => {
     .single();
 
   if (error) return res.status(400).json({ error: error.message });
+  res.json({ journey: data });
+});
+
+router.delete('/journeys/:id', async (req, res) => {
+  const { count } = await supabaseAdmin
+    .from('applications')
+    .select('id', { count: 'exact', head: true })
+    .eq('journey_id', req.params.id);
+
+  if ((count || 0) > 0) {
+    return res.status(400).json({ error: '신청 내역이 있는 여행은 삭제할 수 없습니다. 마감 처리해주세요.' });
+  }
+
+  const { error } = await supabaseAdmin.from('journeys').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: '삭제에 실패했습니다.' });
+  res.json({ ok: true });
+});
+
+router.post('/journeys/:id/image', journeyImageUpload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '이미지 파일을 선택해주세요.' });
+  if (!req.file.mimetype.startsWith('image/')) {
+    return res.status(400).json({ error: '이미지 파일만 업로드할 수 있습니다.' });
+  }
+
+  const ext = (req.file.originalname.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${req.params.id}/${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(JOURNEY_IMAGES_BUCKET)
+    .upload(path, req.file.buffer, { contentType: req.file.mimetype, upsert: true });
+  if (uploadError) return res.status(500).json({ error: '이미지 업로드에 실패했습니다.' });
+
+  const { data: publicUrlData } = supabaseAdmin.storage.from(JOURNEY_IMAGES_BUCKET).getPublicUrl(path);
+  const image_url = publicUrlData.publicUrl;
+
+  const { data, error } = await supabaseAdmin
+    .from('journeys')
+    .update({ image_url })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: '이미지 저장에 실패했습니다.' });
   res.json({ journey: data });
 });
 

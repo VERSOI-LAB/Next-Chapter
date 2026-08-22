@@ -160,6 +160,10 @@ let journeysLoaded = false;
 let editingJourneyId = null;
 let editingItinerary = [];
 
+const JOURNEY_STATUS_LABEL = { draft: '임시저장', open: '공개중', closed: '마감', coming_soon: '오픈예정' };
+const JOURNEY_TYPE_LABEL = { domestic: '국내', overseas: '해외', signature: '시그니처' };
+const DURATION_PRESETS = ['1박2일', '2박3일', '3박4일'];
+
 function emptyDay(dayNum) {
   return { day: dayNum, date_label: `Day ${dayNum}`, items: [] };
 }
@@ -167,6 +171,171 @@ function emptyDay(dayNum) {
 function emptyItem() {
   return { time: '', title: '', desc: '' };
 }
+
+function journeyFormHtml(j) {
+  const journey = j || {};
+  const isEdit = Boolean(journey.id);
+  const durationIsPreset = !journey.duration || DURATION_PRESETS.includes(journey.duration);
+
+  return `
+    <div class="itin-editor-panel" id="journey-form-panel">
+      <div class="itin-editor-head">
+        <h3>${isEdit ? '여행 수정' : '새 여행 추가'}</h3>
+        <button type="button" id="journey-form-close" class="link-btn">닫기</button>
+      </div>
+      <form id="journey-form">
+        <div class="field-row">
+          <div class="field">
+            <label>구분</label>
+            <select name="type">
+              <option value="domestic" ${journey.type === 'domestic' ? 'selected' : ''}>국내</option>
+              <option value="overseas" ${journey.type === 'overseas' ? 'selected' : ''}>해외</option>
+              <option value="signature" ${journey.type === 'signature' ? 'selected' : ''}>시그니처</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>기간</label>
+            <select name="duration_preset">
+              ${DURATION_PRESETS.map((d) => `<option value="${d}" ${journey.duration === d ? 'selected' : ''}>${d}</option>`).join('')}
+              <option value="__custom" ${!durationIsPreset ? 'selected' : ''}>직접입력</option>
+            </select>
+            <input type="text" name="duration_custom" placeholder="예: 4박5일" style="margin-top:8px;display:${durationIsPreset ? 'none' : 'block'}" value="${!durationIsPreset ? esc(journey.duration) : ''}">
+          </div>
+        </div>
+        <div class="field">
+          <label>제목</label>
+          <input type="text" name="title" required value="${esc(journey.title || '')}">
+        </div>
+        <div class="field">
+          <label>한줄 소개</label>
+          <input type="text" name="summary" value="${esc(journey.summary || '')}">
+        </div>
+        <div class="field">
+          <label>상세 설명</label>
+          <textarea name="description">${esc(journey.description || '')}</textarea>
+        </div>
+        <div class="field">
+          <label>사진</label>
+          ${journey.image_url ? `<img src="${esc(journey.image_url)}" alt="" style="width:120px;height:80px;object-fit:cover;display:block;margin-bottom:8px">` : ''}
+          <input type="file" name="image" accept="image/*">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>정원 (남)</label>
+            <input type="number" name="capacity_male" value="${journey.capacity_male ?? 8}" min="0">
+          </div>
+          <div class="field">
+            <label>정원 (여)</label>
+            <input type="number" name="capacity_female" value="${journey.capacity_female ?? 8}" min="0">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>참가비 (원)</label>
+            <input type="number" name="price" value="${journey.price ?? ''}" min="0">
+          </div>
+          <div class="field">
+            <label>출발 예정일</label>
+            <input type="date" name="starts_at" value="${journey.starts_at || ''}">
+          </div>
+        </div>
+        <div class="itin-editor-actions">
+          <button type="submit" data-status="draft" class="btn-outline">임시저장</button>
+          <button type="submit" data-status="open" class="btn">공개 저장</button>
+          <span class="form-msg" id="journey-form-msg"></span>
+        </div>
+      </form>
+    </div>`;
+}
+
+function bindJourneyForm(journey) {
+  const wrap = document.getElementById('journey-form-wrap');
+  wrap.innerHTML = journeyFormHtml(journey);
+
+  const form = document.getElementById('journey-form');
+  const msg = document.getElementById('journey-form-msg');
+  const durationPreset = form.duration_preset;
+  const durationCustom = form.duration_custom;
+
+  durationPreset.addEventListener('change', () => {
+    durationCustom.style.display = durationPreset.value === '__custom' ? 'block' : 'none';
+  });
+
+  document.getElementById('journey-form-close').addEventListener('click', () => { wrap.innerHTML = ''; });
+
+  let submittedStatus = 'draft';
+  form.querySelectorAll('button[type="submit"]').forEach((btn) => {
+    btn.addEventListener('click', () => { submittedStatus = btn.dataset.status; });
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+    msg.className = 'form-msg';
+
+    const duration = durationPreset.value === '__custom' ? durationCustom.value.trim() : durationPreset.value;
+    const payload = {
+      type: form.type.value,
+      duration,
+      title: form.title.value.trim(),
+      summary: form.summary.value.trim() || null,
+      description: form.description.value.trim() || null,
+      capacity_male: Number(form.capacity_male.value) || 0,
+      capacity_female: Number(form.capacity_female.value) || 0,
+      price: form.price.value ? Number(form.price.value) : null,
+      starts_at: form.starts_at.value || null,
+      status: submittedStatus,
+    };
+
+    if (!payload.title) {
+      msg.textContent = '제목을 입력해주세요.';
+      msg.className = 'form-msg error';
+      return;
+    }
+
+    try {
+      let saved;
+      if (journey && journey.id) {
+        ({ journey: saved } = await apiFetch(`/admin/journeys/${journey.id}`, { method: 'PUT', body: payload }));
+      } else {
+        ({ journey: saved } = await apiFetch('/admin/journeys', { method: 'POST', body: payload }));
+      }
+
+      const imageFile = form.image.files[0];
+      if (imageFile) {
+        const fd = new FormData();
+        fd.append('image', imageFile);
+        const session = getSession();
+        const res = await fetch(`/api/admin/journeys/${saved.id}/image`, {
+          method: 'POST',
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+          body: fd,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || '이미지 업로드에 실패했습니다.');
+        saved = data.journey;
+      }
+
+      msg.textContent = '저장되었습니다.';
+      msg.className = 'form-msg success';
+      wrap.innerHTML = '';
+      await loadJourneys();
+
+      editingJourneyId = saved.id;
+      editingItinerary = Array.isArray(saved.itinerary) ? JSON.parse(JSON.stringify(saved.itinerary)) : [];
+      renderItineraryEditor();
+      document.getElementById('itinerary-editor').scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = 'form-msg error';
+    }
+  });
+}
+
+document.getElementById('journey-new-btn').addEventListener('click', () => {
+  bindJourneyForm(null);
+  document.getElementById('journey-form-panel').scrollIntoView({ behavior: 'smooth' });
+});
 
 async function loadJourneys() {
   const wrap = document.getElementById('journeys-content');
@@ -189,14 +358,41 @@ async function loadJourneys() {
           return `
             <div class="journey-admin-row">
               <div>
-                <h4>${esc(j.title)}</h4>
-                <p>${esc(j.type)} · ${esc(j.duration || '-')} · ${dateLabel}</p>
+                <h4>${esc(j.title)} <span class="badge ${j.status === 'open' ? 'approved' : j.status === 'closed' ? 'rejected' : ''}">${JOURNEY_STATUS_LABEL[j.status] || j.status}</span></h4>
+                <p>${JOURNEY_TYPE_LABEL[j.type] || esc(j.type)} · ${esc(j.duration || '-')} · ${dateLabel}</p>
                 <span class="itin-status ${dayCount ? 'has-itin' : ''}">${itinLabel}</span>
               </div>
-              <button type="button" class="btn-outline" data-edit-itinerary="${j.id}">일정 편집</button>
+              <div class="admin-actions">
+                <button type="button" class="btn-outline" data-edit-journey="${j.id}">수정</button>
+                <button type="button" class="btn-outline" data-edit-itinerary="${j.id}">일정 편집</button>
+                <button type="button" class="reject" data-delete-journey="${j.id}">삭제</button>
+              </div>
             </div>`;
         }).join('')}
       </div>`;
+
+    wrap.querySelectorAll('[data-edit-journey]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const journey = journeysCache.find((j) => j.id === btn.dataset.editJourney);
+        if (!journey) return;
+        bindJourneyForm(journey);
+        document.getElementById('journey-form-panel').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    wrap.querySelectorAll('[data-delete-journey]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('이 여행을 삭제하시겠습니까?')) return;
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/journeys/${btn.dataset.deleteJourney}`, { method: 'DELETE' });
+          await loadJourneys();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
 
     wrap.querySelectorAll('[data-edit-itinerary]').forEach((btn) => {
       btn.addEventListener('click', () => {
