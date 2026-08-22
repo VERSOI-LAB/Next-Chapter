@@ -152,6 +152,10 @@ footer a,footer p{font-size:11px;color:#c4beb4;display:block;margin:7px 0}
 .reveal{opacity:0;transform:translateY(25px);transition:opacity .9s ease,transform .9s ease}
 .reveal.visible{opacity:1;transform:none}
 
+.scroll-top-btn{position:fixed;z-index:60;right:24px;bottom:24px;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:var(--ink);font-size:16px;cursor:pointer;opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .25s,transform .25s,border-color .2s,color .2s}
+.scroll-top-btn.visible{opacity:1;visibility:visible;transform:none}
+.scroll-top-btn:hover{border-color:var(--accent);color:var(--accent)}
+
 @media(max-width:800px){
   .site-nav{padding:14px 20px}
   .logo-group .logo{font-size:12px}
@@ -180,4 +184,5 @@ footer a,footer p{font-size:11px;color:#c4beb4;display:block;margin:7px 0}
 
 @media(max-width:520px){
   .limit-cards{grid-template-columns:1fr}
+  .scroll-top-btn{right:16px;bottom:16px;width:40px;height:40px}
 }

@@ -56,3 +56,21 @@ async function loadJourneys() {
 }
 
 document.addEventListener('DOMContentLoaded', loadJourneys);
+
+const scrollTopBtn = document.createElement('button');
+scrollTopBtn.type = 'button';
+scrollTopBtn.className = 'scroll-top-btn';
+scrollTopBtn.setAttribute('aria-label', 'Scroll to top');
+scrollTopBtn.innerHTML = '↑';
+document.body.appendChild(scrollTopBtn);
+
+function toggleScrollTopBtn() {
+  scrollTopBtn.classList.toggle('visible', window.scrollY > 600);
+}
+
+window.addEventListener('scroll', toggleScrollTopBtn, { passive: true });
+toggleScrollTopBtn();
+
+scrollTopBtn.addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
