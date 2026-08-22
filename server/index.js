@@ -16,6 +16,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get('/', (req, res, next) => {
+  if (req.hostname === 'admin.versoi.co.kr') return res.redirect('/admin.html');
+  next();
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/journeys', journeyRoutes);
 app.use('/api/applications', applicationRoutes);
