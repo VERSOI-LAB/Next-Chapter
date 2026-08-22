@@ -674,7 +674,7 @@ router.post('/story-reviews/:id/image', storyImageUpload.single('image'), async 
 });
 
 const BOOKING_SELECT = '*, journey:journeys(id, title, type, destination_country, destination_city, starts_at), group:journey_groups(id, name)';
-const BOOKING_FIELDS = ['status', 'provider', 'cost', 'confirmation_no', 'details'];
+const BOOKING_FIELDS = ['status', 'provider', 'cost', 'confirmation_no', 'details', 'partner_notified_at'];
 const BOOKING_STATUSES = ['draft', 'requested', 'confirmed', 'failed', 'cancelled'];
 
 async function attachBookingPaymentSummary(bookings) {

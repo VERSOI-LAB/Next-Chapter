@@ -1193,6 +1193,16 @@ function bookingEditFormHtml(b) {
     </form>`;
 }
 
+function bookingNotifyToggleHtml(b) {
+  const checked = Boolean(b.partner_notified_at);
+  const dateLabel = checked ? new Date(b.partner_notified_at).toLocaleString('ko-KR') : '';
+  return `
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer">
+      <input type="checkbox" class="booking-notify-toggle" data-booking-id="${b.id}" ${checked ? 'checked' : ''} style="width:auto">
+      업체에 연락 완료${checked ? ` <span style="color:var(--muted)">(${dateLabel})</span>` : ''}
+    </label>`;
+}
+
 function bookingMailtoHtml(b, agencyEmail) {
   if (b.type !== 'flight' || b.status !== 'requested') return '';
   const destLabel = [b.journey?.destination_country, b.journey?.destination_city].filter(Boolean).join(' ');
@@ -1208,20 +1218,43 @@ function bookingMailtoHtml(b, agencyEmail) {
     '위 일정으로 항공권 견적 부탁드립니다.',
   ].join('\n');
   const href = `mailto:${agencyEmail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  return `<a class="btn-outline" href="${href}" style="display:inline-block;margin-bottom:16px;text-decoration:none">✉ 견적 요청 메일 작성</a>`;
+  return `
+    <div style="margin-bottom:16px;padding:12px;border:1px solid var(--line);font-size:13px">
+      <a class="btn-outline" href="${href}" style="display:inline-block;text-decoration:none">✉ 견적 요청 메일 작성</a>
+      ${bookingNotifyToggleHtml(b)}
+    </div>`;
+}
+
+function bookingPartnerContactHtml(b, partner) {
+  if (b.type !== 'lodging' || b.status !== 'confirmed' || !b.details?.partner_id) return '';
+  const dateLabel = b.journey?.starts_at ? new Date(b.journey.starts_at).toLocaleDateString('ko-KR') : '미정';
+  const message = `[NEXT CHAPTER] ${b.journey?.title || ''} 예약 확정 안내 — ${dateLabel} · ${b.pax_count}명 (${b.group?.name || ''}) 예약되었습니다. 확인 부탁드립니다.`;
+  const contactLine = partner?.contact_phone
+    ? `<a class="btn-outline" href="tel:${esc(partner.contact_phone)}" style="text-decoration:none">☎ ${esc(partner.contact_name ? partner.contact_name + ' · ' : '')}${esc(partner.contact_phone)}로 전화</a>`
+    : '<span style="color:var(--muted);font-size:13px">등록된 연락처가 없습니다 — 숙소 파트너 관리에서 연락처를 추가해주세요.</span>';
+  return `
+    <div style="margin-bottom:16px;padding:12px;border:1px solid var(--line);font-size:13px">
+      <p style="color:var(--danger, #c0392b);margin-bottom:8px">⚠ 자동 확정은 내부 상태만 반영된 것입니다. 실제 업체에는 자동으로 전달되지 않으니 직접 연락해 확정을 안내해주세요.</p>
+      ${contactLine}
+      <p style="color:var(--muted);margin-top:8px;white-space:pre-wrap">${esc(message)}</p>
+      ${bookingNotifyToggleHtml(b)}
+    </div>`;
 }
 
 async function loadBookings() {
   const wrap = document.getElementById('bookings-content');
   wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
   try {
-    const [{ bookings }, agenciesRes] = await Promise.all([
+    const [{ bookings }, agenciesRes, partnersRes] = await Promise.all([
       apiFetch('/admin/bookings'),
       apiFetch('/admin/travel-agencies').catch(() => ({ agencies: [] })),
+      apiFetch('/admin/lodging-partners').catch(() => ({ partners: [] })),
     ]);
     bookingsCache = bookings;
     const emailByAgencyId = {};
     (agenciesRes.agencies || []).forEach((a) => { emailByAgencyId[a.id] = a.contact_email; });
+    const partnerById = {};
+    (partnersRes.partners || []).forEach((p) => { partnerById[p.id] = p; });
 
     if (!bookings.length) {
       wrap.innerHTML = '<div class="empty-state">정원이 채워진 조가 아직 없습니다. 매칭 관리에서 조를 완성하면 여기에 자동으로 등록됩니다.</div>';
@@ -1234,16 +1267,21 @@ async function loadBookings() {
       const refundNote = ['failed', 'cancelled'].includes(b.status) && b.paid_participant_count
         ? `<br><span style="color:var(--danger, #c0392b)">환불 확인 필요: ${b.paid_participant_count}명 · ${Number(b.paid_total).toLocaleString('ko-KR')}원</span>`
         : '';
+      const needsPartnerContact = (b.details?.partner_id || b.details?.agency_id) && ['requested', 'confirmed'].includes(b.status);
+      const notifyNote = !needsPartnerContact ? '' : b.partner_notified_at
+        ? `<br><span style="color:var(--muted)">✅ 연락완료 ${new Date(b.partner_notified_at).toLocaleDateString('ko-KR')}</span>`
+        : `<br><span style="color:var(--danger, #c0392b)">📞 업체 연락 필요</span>`;
       const retryBtn = b.status === 'draft'
         ? `<button type="button" class="link-btn" data-retry-booking="${b.id}">자동 배정 다시 시도</button>`
         : '';
       const agencyEmail = emailByAgencyId[b.details?.agency_id];
+      const lodgingPartner = partnerById[b.details?.partner_id];
       return `
         <tr>
           <td>${esc(b.journey?.title || '—')}<br><span style="color:var(--muted)">${esc(destLabel)} · ${dateLabel}</span></td>
           <td>${esc(b.group?.name || '—')}<br><span style="color:var(--muted)">${b.pax_count}명</span></td>
           <td>${BOOKING_TYPE_LABEL[b.type] || b.type}</td>
-          <td><span class="badge ${b.status === 'confirmed' ? 'approved' : b.status === 'failed' || b.status === 'cancelled' ? 'rejected' : ''}">${BOOKING_STATUS_LABEL[b.status] || b.status}</span>${refundNote}</td>
+          <td><span class="badge ${b.status === 'confirmed' ? 'approved' : b.status === 'failed' || b.status === 'cancelled' ? 'rejected' : ''}">${BOOKING_STATUS_LABEL[b.status] || b.status}</span>${refundNote}${notifyNote}</td>
           <td>${esc(b.provider || '-')}</td>
           <td>${b.cost ? Number(b.cost).toLocaleString('ko-KR') + '원' : '-'}</td>
           <td>
@@ -1252,7 +1290,7 @@ async function loadBookings() {
           </td>
         </tr>
         <tr class="admin-detail-row" id="detail-booking-${b.id}" style="display:none">
-          <td colspan="7">${bookingMailtoHtml(b, agencyEmail)}${bookingEditFormHtml(b)}</td>
+          <td colspan="7">${bookingMailtoHtml(b, agencyEmail)}${bookingPartnerContactHtml(b, lodgingPartner)}${bookingEditFormHtml(b)}</td>
         </tr>`;
     }).join('');
 
@@ -1284,6 +1322,22 @@ async function loadBookings() {
         } catch (err) {
           alert(err.message);
           btn.disabled = false;
+        }
+      });
+    });
+
+    wrap.querySelectorAll('.booking-notify-toggle').forEach((cb) => {
+      cb.addEventListener('change', async () => {
+        cb.disabled = true;
+        try {
+          await apiFetch(`/admin/bookings/${cb.dataset.bookingId}`, {
+            method: 'PATCH',
+            body: { partner_notified_at: cb.checked ? new Date().toISOString() : null },
+          });
+          await loadBookings();
+        } catch (err) {
+          alert(err.message);
+          cb.disabled = false;
         }
       });
     });
