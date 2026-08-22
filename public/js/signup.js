@@ -6,10 +6,34 @@ const codeInput = document.getElementById('code');
 const phoneMsg = document.getElementById('phone-msg');
 const sendCodeBtn = document.getElementById('send-code-btn');
 const verifyCodeBtn = document.getElementById('verify-code-btn');
+const birthYearInput = document.getElementById('birth_year');
+const birthYearMsg = document.getElementById('birth-year-msg');
+
+const MIN_AGE = 30;
+const MAX_AGE = 39;
+const currentYear = new Date().getFullYear();
+const minBirthYear = currentYear - MAX_AGE;
+const maxBirthYear = currentYear - MIN_AGE;
+birthYearInput.min = minBirthYear;
+birthYearInput.max = maxBirthYear;
 
 if (getSession()) {
   window.location.href = 'mypage.html';
 }
+
+function validateBirthYear() {
+  const value = Number(birthYearInput.value);
+  if (!value || value < minBirthYear || value > maxBirthYear) {
+    birthYearMsg.textContent = `연나이 ${MIN_AGE}~${MAX_AGE}세만 가입할 수 있습니다. (출생연도 ${minBirthYear}~${maxBirthYear}년)`;
+    birthYearMsg.className = 'form-msg error';
+    return false;
+  }
+  birthYearMsg.textContent = '';
+  birthYearMsg.className = 'form-msg';
+  return true;
+}
+
+birthYearInput.addEventListener('input', validateBirthYear);
 
 let phoneVerified = false;
 let verifiedPhone = null;
@@ -95,6 +119,12 @@ signupForm.addEventListener('submit', async (e) => {
     return;
   }
 
+  if (!validateBirthYear()) {
+    signupMsg.textContent = `연나이 ${MIN_AGE}~${MAX_AGE}세만 가입할 수 있습니다.`;
+    signupMsg.className = 'form-msg error';
+    return;
+  }
+
   const submitBtn = signupForm.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
 
@@ -103,6 +133,7 @@ signupForm.addEventListener('submit', async (e) => {
       username: document.getElementById('username').value.trim(),
       password,
       full_name: document.getElementById('full_name').value.trim(),
+      birth_year: Number(birthYearInput.value),
       phone: verifiedPhone,
       email: document.getElementById('email').value.trim(),
     };

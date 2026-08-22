@@ -7,6 +7,8 @@ const { getSignedUrl } = require('../lib/storage');
 const router = express.Router();
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{4,20}$/;
+const MIN_SIGNUP_AGE = 30;
+const MAX_SIGNUP_AGE = 39;
 
 router.post('/phone/send-code', (req, res) => {
   const { phone } = req.body || {};
@@ -31,15 +33,24 @@ router.post('/phone/verify-code', (req, res) => {
 });
 
 router.post('/signup', async (req, res) => {
-  const { username, email, password, full_name, phone } = req.body || {};
+  const { username, email, password, full_name, phone, birth_year } = req.body || {};
 
-  if (!username || !email || !password || !full_name || !phone) {
+  if (!username || !email || !password || !full_name || !phone || !birth_year) {
     return res.status(400).json({ error: '모든 필수 항목을 입력해주세요.' });
   }
   if (!USERNAME_RE.test(username)) {
     return res.status(400).json({ error: '아이디는 영문, 숫자, _ 조합 4~20자여야 합니다.' });
   }
   if (password.length < 8) return res.status(400).json({ error: '비밀번호는 8자 이상이어야 합니다.' });
+
+  const currentYear = new Date().getFullYear();
+  const minBirthYear = currentYear - MAX_SIGNUP_AGE;
+  const maxBirthYear = currentYear - MIN_SIGNUP_AGE;
+  const birthYearNum = Number(birth_year);
+  if (!Number.isInteger(birthYearNum) || birthYearNum < minBirthYear || birthYearNum > maxBirthYear) {
+    return res.status(400).json({ error: `연나이 ${MIN_SIGNUP_AGE}~${MAX_SIGNUP_AGE}세만 가입할 수 있습니다.` });
+  }
+
   if (!phoneVerification.isVerified(phone)) {
     return res.status(400).json({ error: '휴대폰 본인인증을 완료해주세요.' });
   }
@@ -55,7 +66,7 @@ router.post('/signup', async (req, res) => {
   const { data, error } = await supabaseAnon.auth.signUp({
     email,
     password,
-    options: { data: { full_name, phone: digits, username } },
+    options: { data: { full_name, phone: digits, username, birth_year: birthYearNum } },
   });
 
   if (error) return res.status(400).json({ error: error.message });
