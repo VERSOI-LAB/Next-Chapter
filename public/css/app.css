@@ -157,9 +157,15 @@
 .matching-chip button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px}
 .matching-pool-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .matching-pool-grid h4{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
-.matching-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);margin-bottom:8px;font-size:13px;cursor:pointer}
+.matching-card-wrap{border:1px solid var(--line);margin-bottom:8px}
+.matching-card{display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:13px;cursor:pointer}
 .matching-card input{margin:0}
+.matching-card input:disabled{cursor:not-allowed}
+.matching-card:has(input:disabled){opacity:.4;cursor:not-allowed}
 .matching-card span:nth-child(2){flex:1}
+.matching-card-wrap .admin-detail-toggle{display:block;margin:0 12px 10px;font-size:9px}
+.matching-card-detail{border-top:1px solid var(--line);padding:14px}
+.matching-card-detail .admin-detail-grid{grid-template-columns:1fr}
 
 .revenue-stats{display:flex;gap:16px;flex-wrap:wrap}
 .revenue-stat{flex:1;min-width:160px;border:1px solid var(--line);padding:20px 22px}

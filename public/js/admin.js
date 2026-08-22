@@ -521,6 +521,7 @@ function renderItineraryEditor() {
 }
 
 const VERIFICATION_STATUS_LABEL = { pending: '검토중', verified: '인증완료', rejected: '거절됨' };
+const ROLE_LABEL = { user: 'USER', admin: 'ADMIN', super_admin: '최고관리자' };
 let currentMemberVerification = '';
 let currentMemberQuery = '';
 
@@ -558,8 +559,7 @@ async function loadMembers() {
           </td>
           <td>${new Date(m.created_at).toLocaleDateString('ko-KR')}</td>
           <td>
-            <span class="badge ${m.role === 'admin' ? 'approved' : ''}">${m.role === 'admin' ? 'ADMIN' : 'USER'}</span>
-            <button type="button" class="link-btn" data-toggle-role="${m.id}" data-current-role="${m.role}" style="margin-left:8px">${m.role === 'admin' ? '권한 해제' : '관리자 지정'}</button>
+            <span class="badge ${m.role === 'user' ? '' : 'approved'}">${ROLE_LABEL[m.role] || m.role}</span>
           </td>
           <td>
             <button type="button" class="link-btn admin-detail-toggle" data-detail-id="member-${m.id}">상세보기 ▾</button>
@@ -592,21 +592,6 @@ async function loadMembers() {
           alert(err.message);
         } finally {
           sel.disabled = false;
-        }
-      });
-    });
-
-    wrap.querySelectorAll('[data-toggle-role]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const nextRole = btn.dataset.currentRole === 'admin' ? 'user' : 'admin';
-        if (!confirm(nextRole === 'admin' ? '이 회원을 관리자로 지정하시겠습니까?' : '관리자 권한을 해제하시겠습니까?')) return;
-        btn.disabled = true;
-        try {
-          await apiFetch(`/admin/members/${btn.dataset.toggleRole}/role`, { method: 'PATCH', body: { role: nextRole } });
-          await loadMembers();
-        } catch (err) {
-          alert(err.message);
-          btn.disabled = false;
         }
       });
     });
@@ -675,11 +660,15 @@ function matchingCardHtml(app) {
   const p = app.profile || {};
   const age = ageFromBirthYear(p.birth_year);
   return `
-    <label class="matching-card">
-      <input type="checkbox" data-app-id="${app.id}">
-      <span>${esc(p.full_name || '—')}${age ? ' · ' + age + '세' : ''}</span>
-      <span class="badge ${p.verification_status}">${VERIFICATION_STATUS_LABEL[p.verification_status] || p.verification_status}</span>
-    </label>`;
+    <div class="matching-card-wrap">
+      <label class="matching-card">
+        <input type="checkbox" data-app-id="${app.id}" data-gender="${p.gender || ''}">
+        <span>${esc(p.full_name || '—')}${age ? ' · ' + age + '세' : ''}</span>
+        <span class="badge ${p.verification_status}">${VERIFICATION_STATUS_LABEL[p.verification_status] || p.verification_status}</span>
+      </label>
+      <button type="button" class="link-btn admin-detail-toggle" data-detail-id="match-${app.id}">상세보기 ▾</button>
+      <div class="matching-card-detail" id="detail-match-${app.id}" style="display:none">${renderApplicantDetail(p)}</div>
+    </div>`;
 }
 
 async function loadMatchingRoster() {
@@ -723,14 +712,16 @@ async function loadMatchingRoster() {
           <div id="pool-female">${unassigned.female.map(matchingCardHtml).join('') || '<div class="empty-state">없음</div>'}</div>
         </div>
       </div>
-      <div class="itin-editor-actions">
-        <button type="button" id="matching-create-team-btn" class="btn-outline">선택 인원으로 새 팀 만들기</button>
+      <div class="itin-editor-actions" style="flex-wrap:wrap">
+        <button type="button" id="matching-create-team-btn" class="btn-outline">체크한 인원으로 새 팀 만들기</button>
+        <span style="color:var(--muted);font-size:12px">또는</span>
         <select id="matching-add-to-group-select">
-          <option value="">기존 팀에 추가...</option>
+          <option value="">추가할 기존 팀 선택</option>
           ${groups.map((g) => `<option value="${g.id}">${esc(g.name)}</option>`).join('')}
         </select>
-        <button type="button" id="matching-add-to-team-btn" class="btn-outline" ${groups.length ? '' : 'disabled'}>선택 인원 추가</button>
+        <button type="button" id="matching-add-to-team-btn" class="btn-outline" ${groups.length ? '' : 'disabled'}>체크한 인원을 선택한 팀에 추가</button>
         <span class="form-msg" id="matching-msg"></span>
+        <span style="font-size:12px;color:var(--muted)" id="matching-capacity-note"></span>
       </div>`;
 
     const msg = document.getElementById('matching-msg');
@@ -738,6 +729,37 @@ async function loadMatchingRoster() {
     function getCheckedIds() {
       return [...wrap.querySelectorAll('input[type="checkbox"]:checked')].map((c) => c.dataset.appId);
     }
+
+    function enforceCapacity() {
+      ['male', 'female'].forEach((gender) => {
+        const capacity = gender === 'male' ? journey.capacity_male : journey.capacity_female;
+        const boxes = [...wrap.querySelectorAll(`input[type="checkbox"][data-gender="${gender}"]`)];
+        const checkedCount = boxes.filter((b) => b.checked).length;
+        const atCapacity = checkedCount >= capacity;
+        boxes.forEach((b) => { if (!b.checked) b.disabled = atCapacity; });
+      });
+
+      const maleChecked = wrap.querySelectorAll('input[data-gender="male"]:checked').length;
+      const femaleChecked = wrap.querySelectorAll('input[data-gender="female"]:checked').length;
+      const notes = [];
+      if (maleChecked >= journey.capacity_male) notes.push(`남 정원(${journey.capacity_male}명)까지 선택했습니다`);
+      if (femaleChecked >= journey.capacity_female) notes.push(`여 정원(${journey.capacity_female}명)까지 선택했습니다`);
+      document.getElementById('matching-capacity-note').textContent = notes.join(' · ');
+    }
+
+    wrap.querySelectorAll('input[type="checkbox"][data-app-id]').forEach((box) => {
+      box.addEventListener('change', enforceCapacity);
+    });
+    enforceCapacity();
+
+    wrap.querySelectorAll('.admin-detail-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const panel = document.getElementById(`detail-${btn.dataset.detailId}`);
+        const isOpen = panel.style.display !== 'none';
+        panel.style.display = isOpen ? 'none' : 'block';
+        btn.textContent = isOpen ? '상세보기 ▾' : '접기 ▴';
+      });
+    });
 
     document.getElementById('matching-create-team-btn').addEventListener('click', async () => {
       const ids = getCheckedIds();
@@ -800,7 +822,16 @@ async function loadRevenue() {
   const wrap = document.getElementById('revenue-content');
   wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
   try {
-    const { summary, by_journey: byJourney, transactions } = await apiFetch('/admin/revenue');
+    const params = new URLSearchParams();
+    const q = document.getElementById('revenue-search').value.trim();
+    const from = document.getElementById('revenue-from').value;
+    const to = document.getElementById('revenue-to').value;
+    if (q) params.set('q', q);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const query = params.toString() ? `?${params.toString()}` : '';
+
+    const { summary, by_journey: byJourney, transactions } = await apiFetch(`/admin/revenue${query}`);
 
     const statRow = `
       <div class="revenue-stats">
@@ -816,23 +847,142 @@ async function loadRevenue() {
       : '<div class="empty-state">아직 결제 데이터가 없습니다. 토스페이먼츠 연동 후 이 화면에 매출이 표시됩니다.</div>';
 
     const txHtml = transactions.length
-      ? `<table class="admin-table"><thead><tr><th>Date</th><th>Name</th><th>Journey</th><th>Amount</th><th>Status</th></tr></thead><tbody>
+      ? `<table class="admin-table"><thead><tr><th>결제일</th><th>이름</th><th>전화번호</th><th>Journey</th><th>Amount</th><th>Status</th></tr></thead><tbody>
           ${transactions.map((t) => `<tr>
             <td>${new Date(t.created_at).toLocaleDateString('ko-KR')}</td>
             <td>${esc(t.profile?.full_name || '—')}</td>
+            <td>${esc(t.profile?.phone || '—')}</td>
             <td>${esc(t.journey?.title || '—')}</td>
             <td>${t.amount.toLocaleString('ko-KR')}원</td>
             <td><span class="badge ${t.status === 'paid' ? 'approved' : 'rejected'}">${t.status === 'paid' ? '결제완료' : '환불됨'}</span></td>
           </tr>`).join('')}
         </tbody></table>`
-      : '';
+      : (q || from || to) ? '<div class="empty-state">검색 결과가 없습니다.</div>' : '';
 
     wrap.innerHTML = `
       ${statRow}
       <p class="section-label" style="margin:28px 0 12px">여행별 매출</p>
       ${byJourneyHtml}
-      ${txHtml ? `<p class="section-label" style="margin:28px 0 12px">결제 내역</p>${txHtml}` : ''}
+      <p class="section-label" style="margin:28px 0 12px">결제 내역${(q || from || to) ? ` (검색 결과 ${transactions.length}건)` : ''}</p>
+      ${txHtml || '<div class="empty-state">결제 내역이 없습니다.</div>'}
     `;
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
+let revenueSearchTimer = null;
+['revenue-search', 'revenue-from', 'revenue-to'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', () => {
+    clearTimeout(revenueSearchTimer);
+    revenueSearchTimer = setTimeout(loadRevenue, 300);
+  });
+});
+
+function permissionFormHtml() {
+  return `
+    <div class="itin-editor-panel" id="permission-form-panel">
+      <div class="itin-editor-head">
+        <h3>관리자 계정 추가</h3>
+        <button type="button" id="permission-form-close" class="link-btn">닫기</button>
+      </div>
+      <form id="permission-form">
+        <div class="field">
+          <label>이메일 (로그인용)</label>
+          <input type="email" name="email" required>
+        </div>
+        <div class="field">
+          <label>아이디</label>
+          <input type="text" name="username" required>
+        </div>
+        <div class="field">
+          <label>비밀번호</label>
+          <input type="password" name="password" minlength="8" required>
+        </div>
+        <div class="field">
+          <label>이름</label>
+          <input type="text" name="full_name" required>
+        </div>
+        <div class="itin-editor-actions">
+          <button type="submit" class="btn-outline">추가</button>
+          <span class="form-msg" id="permission-form-msg"></span>
+        </div>
+      </form>
+    </div>`;
+}
+
+document.getElementById('permission-new-btn').addEventListener('click', () => {
+  const wrap = document.getElementById('permission-form-wrap');
+  wrap.innerHTML = permissionFormHtml();
+  const form = document.getElementById('permission-form');
+  const msg = document.getElementById('permission-form-msg');
+
+  document.getElementById('permission-form-close').addEventListener('click', () => { wrap.innerHTML = ''; });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+    msg.className = 'form-msg';
+    try {
+      await apiFetch('/admin/permissions/admins', {
+        method: 'POST',
+        body: {
+          email: form.email.value.trim(),
+          username: form.username.value.trim(),
+          password: form.password.value,
+          full_name: form.full_name.value.trim(),
+        },
+      });
+      wrap.innerHTML = '';
+      await loadPermissions();
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = 'form-msg error';
+    }
+  });
+});
+
+async function loadPermissions() {
+  const wrap = document.getElementById('permissions-content');
+  wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+  try {
+    const { admins } = await apiFetch('/admin/permissions/admins');
+
+    if (!admins.length) {
+      wrap.innerHTML = '<div class="empty-state">등록된 관리자가 없습니다.</div>';
+      return;
+    }
+
+    const rows = admins.map((a) => `
+      <tr>
+        <td>${esc(a.full_name || '—')}<br><span style="color:var(--muted)">${esc(a.username || '—')}</span></td>
+        <td>${esc(a.email || '—')}</td>
+        <td><span class="badge ${a.role === 'super_admin' ? 'approved' : ''}">${ROLE_LABEL[a.role] || a.role}</span></td>
+        <td>${new Date(a.created_at).toLocaleDateString('ko-KR')}</td>
+        <td>${a.role === 'super_admin' ? '' : `<button type="button" class="link-btn" data-revoke-admin="${a.id}">권한 해제</button>`}</td>
+      </tr>`).join('');
+
+    wrap.innerHTML = `
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+
+    wrap.querySelectorAll('[data-revoke-admin]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('이 관리자의 권한을 해제하시겠습니까?')) return;
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/permissions/admins/${btn.dataset.revokeAdmin}/revoke`, { method: 'PATCH' });
+          await loadPermissions();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
   } catch (err) {
     wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
   }
@@ -845,12 +995,25 @@ const adminPanels = {
   members: document.getElementById('panel-members'),
   matching: document.getElementById('panel-matching'),
   revenue: document.getElementById('panel-revenue'),
+  permissions: document.getElementById('panel-permissions'),
 };
-const ADMIN_TITLE_LABEL = { applications: 'Applications', journeys: 'Journeys', members: 'Members', matching: 'Matching', revenue: 'Revenue' };
+const ADMIN_TITLE_LABEL = { applications: 'Applications', journeys: 'Journeys', members: 'Members', matching: 'Matching', revenue: 'Revenue', permissions: 'Permissions' };
 
 let membersLoaded = false;
 let matchingLoaded = false;
 let revenueLoaded = false;
+let permissionsLoaded = false;
+
+(async function initRole() {
+  try {
+    const { profile } = await apiFetch('/auth/me');
+    if (profile?.role === 'super_admin') {
+      document.getElementById('permissions-tab-btn').style.display = '';
+    }
+  } catch {
+    // ignore — tab just stays hidden
+  }
+})();
 
 adminSectionTabs.forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -875,6 +1038,10 @@ adminSectionTabs.forEach((btn) => {
     if (btn.dataset.section === 'revenue' && !revenueLoaded) {
       revenueLoaded = true;
       loadRevenue();
+    }
+    if (btn.dataset.section === 'permissions' && !permissionsLoaded) {
+      permissionsLoaded = true;
+      loadPermissions();
     }
   });
 });

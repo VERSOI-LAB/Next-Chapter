@@ -38,6 +38,7 @@
     <button type="button" data-section="members">회원 관리</button>
     <button type="button" data-section="matching">매칭 관리</button>
     <button type="button" data-section="revenue">매출 관리</button>
+    <button type="button" data-section="permissions" id="permissions-tab-btn" style="display:none">권한 설정</button>
   </div>
 
   <div id="panel-applications" class="mypage-panel active">
@@ -83,7 +84,30 @@
   </div>
 
   <div id="panel-revenue" class="mypage-panel">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;max-width:720px">
+      <div class="field" style="flex:1;min-width:200px">
+        <label>이름 · 전화번호 검색</label>
+        <input type="text" id="revenue-search" placeholder="이름 또는 전화번호">
+      </div>
+      <div class="field" style="min-width:150px">
+        <label>결제일 (부터)</label>
+        <input type="date" id="revenue-from">
+      </div>
+      <div class="field" style="min-width:150px">
+        <label>결제일 (까지)</label>
+        <input type="date" id="revenue-to">
+      </div>
+    </div>
     <div id="revenue-content">
+      <div class="empty-state">불러오는 중…</div>
+    </div>
+  </div>
+
+  <div id="panel-permissions" class="mypage-panel">
+    <p style="color:var(--muted);font-size:13px;margin-bottom:20px">여기서 만든 계정만 어드민에 로그인할 수 있습니다. 일반 회원가입으로는 관리자 권한이 생기지 않습니다.</p>
+    <button type="button" id="permission-new-btn" class="btn-outline" style="margin-bottom:20px">+ 관리자 계정 추가</button>
+    <div id="permission-form-wrap"></div>
+    <div id="permissions-content">
       <div class="empty-state">불러오는 중…</div>
     </div>
   </div>

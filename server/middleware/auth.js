@@ -20,10 +20,24 @@ async function requireAdmin(req, res, next) {
     .eq('id', req.user.id)
     .single();
 
-  if (error || profile?.role !== 'admin') {
+  if (error || !['admin', 'super_admin'].includes(profile?.role)) {
     return res.status(403).json({ error: '관리자만 접근할 수 있습니다.' });
+  }
+  req.adminRole = profile.role;
+  next();
+}
+
+async function requireSuperAdmin(req, res, next) {
+  const { data: profile, error } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', req.user.id)
+    .single();
+
+  if (error || profile?.role !== 'super_admin') {
+    return res.status(403).json({ error: '최고관리자만 접근할 수 있습니다.' });
   }
   next();
 }
 
-module.exports = { requireAuth, requireAdmin };
+module.exports = { requireAuth, requireAdmin, requireSuperAdmin };

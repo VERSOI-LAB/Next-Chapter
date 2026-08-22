@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const { supabaseAdmin } = require('../lib/supabase');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 const { getSignedUrl, getSignedUrls } = require('../lib/storage');
 const { VERIFY_TYPES } = require('../lib/verificationDocs');
 
@@ -198,8 +198,6 @@ router.post('/journeys/:id/image', journeyImageUpload.single('image'), async (re
   res.json({ journey: data });
 });
 
-const ROSTER_PROFILE_FIELDS = 'id, full_name, gender, birth_year, verification_status';
-
 router.get('/journeys/:id/roster', async (req, res) => {
   const { data: journey, error: journeyError } = await supabaseAdmin
     .from('journeys')
@@ -208,15 +206,17 @@ router.get('/journeys/:id/roster', async (req, res) => {
     .single();
   if (journeyError || !journey) return res.status(404).json({ error: '여행을 찾을 수 없습니다.' });
 
-  const [{ data: groups, error: groupsError }, { data: applications, error: appsError }] = await Promise.all([
+  const [{ data: groups, error: groupsError }, { data: rawApplications, error: appsError }] = await Promise.all([
     supabaseAdmin.from('journey_groups').select('id, name, created_at').eq('journey_id', journey.id).order('created_at', { ascending: true }),
     supabaseAdmin
       .from('applications')
-      .select(`id, group_id, profile:profiles(${ROSTER_PROFILE_FIELDS})`)
+      .select(`id, group_id, profile:profiles(${PROFILE_DETAIL_FIELDS})`)
       .eq('journey_id', journey.id)
       .eq('status', 'approved'),
   ]);
   if (groupsError || appsError) return res.status(500).json({ error: '매칭 현황을 불러오지 못했습니다.' });
+
+  const applications = await attachApplicantDetails(rawApplications);
 
   const groupsWithMembers = (groups || []).map((g) => ({
     ...g,
@@ -298,27 +298,76 @@ router.get('/members', async (req, res) => {
   res.json({ members: await attachProfileDetails(data) });
 });
 
-router.patch('/members/:id/role', async (req, res) => {
-  const { role } = req.body || {};
-  if (!['user', 'admin'].includes(role)) return res.status(400).json({ error: '올바르지 않은 권한 값입니다.' });
+router.get('/permissions/admins', requireSuperAdmin, async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, username, full_name, role, created_at')
+    .in('role', ['admin', 'super_admin'])
+    .order('created_at', { ascending: false });
+
+  if (error) return res.status(500).json({ error: '관리자 목록을 불러오지 못했습니다.' });
+
+  const withEmail = await Promise.all(data.map(async (p) => {
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(p.id);
+    return { ...p, email: userData?.user?.email || null };
+  }));
+
+  res.json({ admins: withEmail });
+});
+
+router.post('/permissions/admins', requireSuperAdmin, async (req, res) => {
+  const { email, username, password, full_name } = req.body || {};
+  if (!email || !username || !password || !full_name) {
+    return res.status(400).json({ error: '이메일, 아이디, 비밀번호, 이름을 모두 입력해주세요.' });
+  }
+  if (password.length < 8) return res.status(400).json({ error: '비밀번호는 8자 이상이어야 합니다.' });
+
+  const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name, username },
+  });
+  if (createError) return res.status(400).json({ error: createError.message });
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .update({ role: 'admin' })
+    .eq('id', created.user.id)
+    .select('id, username, full_name, role, created_at')
+    .single();
+  if (profileError) return res.status(500).json({ error: '관리자 권한 설정에 실패했습니다.' });
+
+  res.status(201).json({ admin: { ...profile, email } });
+});
+
+router.patch('/permissions/admins/:id/revoke', requireSuperAdmin, async (req, res) => {
+  if (req.params.id === req.user.id) {
+    return res.status(400).json({ error: '자기 자신의 권한은 여기서 해제할 수 없습니다.' });
+  }
+
+  const { data: target } = await supabaseAdmin.from('profiles').select('role').eq('id', req.params.id).single();
+  if (target?.role === 'super_admin') {
+    return res.status(400).json({ error: '최고관리자 권한은 해제할 수 없습니다.' });
+  }
 
   const { data, error } = await supabaseAdmin
     .from('profiles')
-    .update({ role })
+    .update({ role: 'user' })
     .eq('id', req.params.id)
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: '권한 변경에 실패했습니다.' });
+  if (error) return res.status(500).json({ error: '권한 해제에 실패했습니다.' });
   res.json({ profile: data });
 });
 
 router.get('/revenue', async (req, res) => {
-  const { from, to, journey_id: journeyId } = req.query;
+  const { from, to, journey_id: journeyId, q } = req.query;
 
   let query = supabaseAdmin
     .from('payments')
-    .select('id, amount, status, created_at, journey_id, journey:journeys(id, title), user_id, profile:profiles(id, full_name)')
+    .select('id, amount, status, created_at, journey_id, journey:journeys(id, title), user_id, profile:profiles(id, full_name, phone)')
     .in('status', ['paid', 'refunded'])
     .order('created_at', { ascending: false });
 
@@ -342,6 +391,16 @@ router.get('/revenue', async (req, res) => {
     byJourneyMap[key].count += 1;
   });
 
+  let transactions = data;
+  if (q) {
+    const needle = q.trim().replace(/-/g, '');
+    transactions = data.filter((p) => {
+      const name = p.profile?.full_name || '';
+      const phone = (p.profile?.phone || '').replace(/-/g, '');
+      return name.includes(q.trim()) || phone.includes(needle);
+    });
+  }
+
   res.json({
     summary: {
       total_paid: totalPaid,
@@ -351,7 +410,7 @@ router.get('/revenue', async (req, res) => {
       refunded_count: refunded.length,
     },
     by_journey: Object.values(byJourneyMap).sort((a, b) => b.amount - a.amount),
-    transactions: data.slice(0, 200),
+    transactions: transactions.slice(0, 200),
   });
 });
 
