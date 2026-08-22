@@ -35,6 +35,9 @@
   <div class="mypage-tabs" id="admin-section-tabs">
     <button type="button" data-section="applications" class="active">신청 관리</button>
     <button type="button" data-section="journeys">여행 · 일정 관리</button>
+    <button type="button" data-section="members">회원 관리</button>
+    <button type="button" data-section="matching">매칭 관리</button>
+    <button type="button" data-section="revenue">매출 관리</button>
   </div>
 
   <div id="panel-applications" class="mypage-panel active">
@@ -56,6 +59,33 @@
       <div class="empty-state">불러오는 중…</div>
     </div>
     <div id="itinerary-editor"></div>
+  </div>
+
+  <div id="panel-members" class="mypage-panel">
+    <div class="admin-tabs" id="member-status-tabs">
+      <button data-verification="" class="active">All</button>
+      <button data-verification="pending">Pending</button>
+      <button data-verification="verified">Verified</button>
+      <button data-verification="rejected">Rejected</button>
+    </div>
+    <input type="text" id="member-search" placeholder="이름 · 아이디 · 연락처 검색" style="margin:16px 0;max-width:320px;width:100%;padding:10px 12px;border:1px solid var(--line);font:inherit;font-size:13px">
+    <div id="members-content">
+      <div class="empty-state">불러오는 중…</div>
+    </div>
+  </div>
+
+  <div id="panel-matching" class="mypage-panel">
+    <div class="field" style="max-width:360px">
+      <label>여행 선택</label>
+      <select id="matching-journey-select"><option value="">불러오는 중…</option></select>
+    </div>
+    <div id="matching-content"></div>
+  </div>
+
+  <div id="panel-revenue" class="mypage-panel">
+    <div id="revenue-content">
+      <div class="empty-state">불러오는 중…</div>
+    </div>
   </div>
 </main>
 

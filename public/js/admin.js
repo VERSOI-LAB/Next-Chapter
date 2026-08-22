@@ -517,11 +517,337 @@ function renderItineraryEditor() {
   });
 }
 
+const VERIFICATION_STATUS_LABEL = { pending: '검토중', verified: '인증완료', rejected: '거절됨' };
+let currentMemberVerification = '';
+let currentMemberQuery = '';
+
+function ageFromBirthYear(birthYear) {
+  if (!birthYear) return null;
+  return new Date().getFullYear() - Number(birthYear);
+}
+
+async function loadMembers() {
+  const wrap = document.getElementById('members-content');
+  wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+  try {
+    const params = new URLSearchParams();
+    if (currentMemberVerification) params.set('verification', currentMemberVerification);
+    if (currentMemberQuery) params.set('q', currentMemberQuery);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const { members } = await apiFetch(`/admin/members${query}`);
+
+    if (!members.length) {
+      wrap.innerHTML = '<div class="empty-state">회원이 없습니다.</div>';
+      return;
+    }
+
+    const rows = members.map((m) => {
+      const genderLabel = m.gender === 'male' ? '남' : m.gender === 'female' ? '여' : '-';
+      const age = ageFromBirthYear(m.birth_year);
+      return `
+        <tr>
+          <td>${esc(m.full_name || '—')}<br><span style="color:var(--muted)">${esc(m.username || '—')} · ${genderLabel}${age ? ' · ' + age + '세' : ''}</span></td>
+          <td>${esc(m.phone || '—')}</td>
+          <td>
+            <select data-verification-select="${m.id}">
+              ${['pending', 'verified', 'rejected'].map((s) => `<option value="${s}" ${m.verification_status === s ? 'selected' : ''}>${VERIFICATION_STATUS_LABEL[s]}</option>`).join('')}
+            </select>
+          </td>
+          <td>${new Date(m.created_at).toLocaleDateString('ko-KR')}</td>
+          <td>
+            <span class="badge ${m.role === 'admin' ? 'approved' : ''}">${m.role === 'admin' ? 'ADMIN' : 'USER'}</span>
+            <button type="button" class="link-btn" data-toggle-role="${m.id}" data-current-role="${m.role}" style="margin-left:8px">${m.role === 'admin' ? '권한 해제' : '관리자 지정'}</button>
+          </td>
+          <td>
+            <button type="button" class="link-btn admin-detail-toggle" data-detail-id="member-${m.id}">상세보기 ▾</button>
+          </td>
+        </tr>
+        <tr class="admin-detail-row" id="detail-member-${m.id}" style="display:none">
+          <td colspan="6">${renderApplicantDetail(m)}</td>
+        </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr><th>Name</th><th>Phone</th><th>Verification</th><th>Joined</th><th>Role</th><th>Actions</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+
+    wrap.querySelectorAll('[data-verification-select]').forEach((sel) => {
+      sel.addEventListener('change', async () => {
+        sel.disabled = true;
+        try {
+          await apiFetch(`/admin/verification/${sel.dataset.verificationSelect}`, {
+            method: 'PATCH',
+            body: { verification_status: sel.value },
+          });
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          sel.disabled = false;
+        }
+      });
+    });
+
+    wrap.querySelectorAll('[data-toggle-role]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const nextRole = btn.dataset.currentRole === 'admin' ? 'user' : 'admin';
+        if (!confirm(nextRole === 'admin' ? '이 회원을 관리자로 지정하시겠습니까?' : '관리자 권한을 해제하시겠습니까?')) return;
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/members/${btn.dataset.toggleRole}/role`, { method: 'PATCH', body: { role: nextRole } });
+          await loadMembers();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
+    wrap.querySelectorAll('.admin-detail-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const row = document.getElementById(`detail-${btn.dataset.detailId}`);
+        const isOpen = row.style.display !== 'none';
+        row.style.display = isOpen ? 'none' : 'table-row';
+        btn.textContent = isOpen ? '상세보기 ▾' : '접기 ▴';
+      });
+    });
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
+document.getElementById('member-status-tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-verification]');
+  if (!btn) return;
+  document.querySelectorAll('#member-status-tabs button').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentMemberVerification = btn.dataset.verification;
+  loadMembers();
+});
+
+let memberSearchTimer = null;
+document.getElementById('member-search').addEventListener('input', (e) => {
+  clearTimeout(memberSearchTimer);
+  memberSearchTimer = setTimeout(() => {
+    currentMemberQuery = e.target.value.trim();
+    loadMembers();
+  }, 300);
+});
+
+let matchingJourneys = [];
+let currentMatchingJourneyId = null;
+
+async function loadMatchingJourneyOptions() {
+  const select = document.getElementById('matching-journey-select');
+  try {
+    const { journeys } = await apiFetch('/admin/journeys');
+    matchingJourneys = journeys.filter((j) => ['open', 'coming_soon'].includes(j.status));
+
+    if (!matchingJourneys.length) {
+      select.innerHTML = '<option value="">열려있는 여행이 없습니다</option>';
+      document.getElementById('matching-content').innerHTML = '';
+      return;
+    }
+
+    select.innerHTML = matchingJourneys.map((j) => `<option value="${j.id}">${esc(j.title)}</option>`).join('');
+    currentMatchingJourneyId = matchingJourneys[0].id;
+    select.value = currentMatchingJourneyId;
+    await loadMatchingRoster();
+  } catch (err) {
+    select.innerHTML = '<option value="">불러오기 실패</option>';
+  }
+}
+
+document.getElementById('matching-journey-select').addEventListener('change', (e) => {
+  currentMatchingJourneyId = e.target.value;
+  loadMatchingRoster();
+});
+
+function matchingCardHtml(app) {
+  const p = app.profile || {};
+  const age = ageFromBirthYear(p.birth_year);
+  return `
+    <label class="matching-card">
+      <input type="checkbox" data-app-id="${app.id}">
+      <span>${esc(p.full_name || '—')}${age ? ' · ' + age + '세' : ''}</span>
+      <span class="badge ${p.verification_status}">${VERIFICATION_STATUS_LABEL[p.verification_status] || p.verification_status}</span>
+    </label>`;
+}
+
+async function loadMatchingRoster() {
+  const wrap = document.getElementById('matching-content');
+  if (!currentMatchingJourneyId) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+
+  try {
+    const { journey, groups, unassigned } = await apiFetch(`/admin/journeys/${currentMatchingJourneyId}/roster`);
+
+    const groupsHtml = groups.map((g) => {
+      const maleCount = g.members.filter((m) => m.profile?.gender === 'male').length;
+      const femaleCount = g.members.filter((m) => m.profile?.gender === 'female').length;
+      return `
+        <div class="matching-group">
+          <div class="matching-group-head">
+            <h4>${esc(g.name)} <span style="color:var(--muted);font-size:12px">(승인 남 ${maleCount}/${journey.capacity_male} · 여 ${femaleCount}/${journey.capacity_female})</span></h4>
+            <button type="button" class="link-btn" data-delete-group="${g.id}">팀 해체</button>
+          </div>
+          <div class="matching-group-members">
+            ${g.members.map((m) => {
+              const p = m.profile || {};
+              const age = ageFromBirthYear(p.birth_year);
+              return `<span class="matching-chip">${esc(p.full_name || '—')}${age ? ' · ' + age + '세' : ''} <button type="button" data-remove-member="${m.id}" data-group-id="${g.id}">×</button></span>`;
+            }).join('') || '<span style="color:var(--muted);font-size:13px">팀원 없음</span>'}
+          </div>
+        </div>`;
+    }).join('') || '<div class="empty-state">아직 만들어진 팀이 없습니다.</div>';
+
+    wrap.innerHTML = `
+      <p class="section-label" style="margin:24px 0 12px">확정된 팀</p>
+      ${groupsHtml}
+      <p class="section-label" style="margin:32px 0 12px">대기 명단 (정원: 남 ${journey.capacity_male} · 여 ${journey.capacity_female})</p>
+      <div class="matching-pool-grid">
+        <div>
+          <h4>남성 신청자 (${unassigned.male.length})</h4>
+          <div id="pool-male">${unassigned.male.map(matchingCardHtml).join('') || '<div class="empty-state">없음</div>'}</div>
+        </div>
+        <div>
+          <h4>여성 신청자 (${unassigned.female.length})</h4>
+          <div id="pool-female">${unassigned.female.map(matchingCardHtml).join('') || '<div class="empty-state">없음</div>'}</div>
+        </div>
+      </div>
+      <div class="itin-editor-actions">
+        <button type="button" id="matching-create-team-btn" class="btn-outline">선택 인원으로 새 팀 만들기</button>
+        <select id="matching-add-to-group-select">
+          <option value="">기존 팀에 추가...</option>
+          ${groups.map((g) => `<option value="${g.id}">${esc(g.name)}</option>`).join('')}
+        </select>
+        <button type="button" id="matching-add-to-team-btn" class="btn-outline" ${groups.length ? '' : 'disabled'}>선택 인원 추가</button>
+        <span class="form-msg" id="matching-msg"></span>
+      </div>`;
+
+    const msg = document.getElementById('matching-msg');
+
+    function getCheckedIds() {
+      return [...wrap.querySelectorAll('input[type="checkbox"]:checked')].map((c) => c.dataset.appId);
+    }
+
+    document.getElementById('matching-create-team-btn').addEventListener('click', async () => {
+      const ids = getCheckedIds();
+      if (!ids.length) { msg.textContent = '팀에 포함할 신청자를 선택해주세요.'; msg.className = 'form-msg error'; return; }
+      try {
+        await apiFetch(`/admin/journeys/${currentMatchingJourneyId}/groups`, { method: 'POST', body: { application_ids: ids } });
+        await loadMatchingRoster();
+      } catch (err) {
+        msg.textContent = err.message;
+        msg.className = 'form-msg error';
+      }
+    });
+
+    document.getElementById('matching-add-to-team-btn').addEventListener('click', async () => {
+      const groupId = document.getElementById('matching-add-to-group-select').value;
+      const ids = getCheckedIds();
+      if (!groupId) { msg.textContent = '추가할 팀을 선택해주세요.'; msg.className = 'form-msg error'; return; }
+      if (!ids.length) { msg.textContent = '추가할 인원을 선택해주세요.'; msg.className = 'form-msg error'; return; }
+      try {
+        await apiFetch(`/admin/groups/${groupId}`, { method: 'PATCH', body: { add_ids: ids } });
+        await loadMatchingRoster();
+      } catch (err) {
+        msg.textContent = err.message;
+        msg.className = 'form-msg error';
+      }
+    });
+
+    wrap.querySelectorAll('[data-remove-member]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/groups/${btn.dataset.groupId}`, { method: 'PATCH', body: { remove_ids: [btn.dataset.removeMember] } });
+          await loadMatchingRoster();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
+    wrap.querySelectorAll('[data-delete-group]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('이 팀을 해체하시겠습니까? 팀원은 대기 명단으로 돌아갑니다.')) return;
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/groups/${btn.dataset.deleteGroup}`, { method: 'DELETE' });
+          await loadMatchingRoster();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
+async function loadRevenue() {
+  const wrap = document.getElementById('revenue-content');
+  wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+  try {
+    const { summary, by_journey: byJourney, transactions } = await apiFetch('/admin/revenue');
+
+    const statRow = `
+      <div class="revenue-stats">
+        <div class="revenue-stat"><span class="revenue-stat-label">총 결제액</span><span class="revenue-stat-value">${summary.total_paid.toLocaleString('ko-KR')}원</span></div>
+        <div class="revenue-stat"><span class="revenue-stat-label">총 환불액</span><span class="revenue-stat-value">${summary.total_refunded.toLocaleString('ko-KR')}원</span></div>
+        <div class="revenue-stat"><span class="revenue-stat-label">순매출</span><span class="revenue-stat-value">${summary.net_revenue.toLocaleString('ko-KR')}원</span></div>
+      </div>`;
+
+    const byJourneyHtml = byJourney.length
+      ? `<table class="admin-table"><thead><tr><th>Journey</th><th>결제 건수</th><th>금액</th></tr></thead><tbody>
+          ${byJourney.map((j) => `<tr><td>${esc(j.title)}</td><td>${j.count}</td><td>${j.amount.toLocaleString('ko-KR')}원</td></tr>`).join('')}
+        </tbody></table>`
+      : '<div class="empty-state">아직 결제 데이터가 없습니다. 토스페이먼츠 연동 후 이 화면에 매출이 표시됩니다.</div>';
+
+    const txHtml = transactions.length
+      ? `<table class="admin-table"><thead><tr><th>Date</th><th>Name</th><th>Journey</th><th>Amount</th><th>Status</th></tr></thead><tbody>
+          ${transactions.map((t) => `<tr>
+            <td>${new Date(t.created_at).toLocaleDateString('ko-KR')}</td>
+            <td>${esc(t.profile?.full_name || '—')}</td>
+            <td>${esc(t.journey?.title || '—')}</td>
+            <td>${t.amount.toLocaleString('ko-KR')}원</td>
+            <td><span class="badge ${t.status === 'paid' ? 'approved' : 'rejected'}">${t.status === 'paid' ? '결제완료' : '환불됨'}</span></td>
+          </tr>`).join('')}
+        </tbody></table>`
+      : '';
+
+    wrap.innerHTML = `
+      ${statRow}
+      <p class="section-label" style="margin:28px 0 12px">여행별 매출</p>
+      ${byJourneyHtml}
+      ${txHtml ? `<p class="section-label" style="margin:28px 0 12px">결제 내역</p>${txHtml}` : ''}
+    `;
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
 const adminSectionTabs = document.querySelectorAll('#admin-section-tabs button');
 const adminPanels = {
   applications: document.getElementById('panel-applications'),
   journeys: document.getElementById('panel-journeys'),
+  members: document.getElementById('panel-members'),
+  matching: document.getElementById('panel-matching'),
+  revenue: document.getElementById('panel-revenue'),
 };
+const ADMIN_TITLE_LABEL = { applications: 'Applications', journeys: 'Journeys', members: 'Members', matching: 'Matching', revenue: 'Revenue' };
+
+let membersLoaded = false;
+let matchingLoaded = false;
+let revenueLoaded = false;
 
 adminSectionTabs.forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -529,11 +855,23 @@ adminSectionTabs.forEach((btn) => {
     btn.classList.add('active');
     Object.values(adminPanels).forEach((p) => p.classList.remove('active'));
     adminPanels[btn.dataset.section].classList.add('active');
-    document.getElementById('admin-title').textContent = btn.dataset.section === 'journeys' ? 'Journeys' : 'Applications';
+    document.getElementById('admin-title').textContent = ADMIN_TITLE_LABEL[btn.dataset.section] || 'Applications';
 
     if (btn.dataset.section === 'journeys' && !journeysLoaded) {
       journeysLoaded = true;
       loadJourneys();
+    }
+    if (btn.dataset.section === 'members' && !membersLoaded) {
+      membersLoaded = true;
+      loadMembers();
+    }
+    if (btn.dataset.section === 'matching' && !matchingLoaded) {
+      matchingLoaded = true;
+      loadMatchingJourneyOptions();
+    }
+    if (btn.dataset.section === 'revenue' && !revenueLoaded) {
+      revenueLoaded = true;
+      loadRevenue();
     }
   });
 });

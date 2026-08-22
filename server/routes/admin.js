@@ -24,9 +24,9 @@ function pickJourneyFields(body) {
 const PHOTOS_BUCKET = 'profile-photos';
 const DOCS_BUCKET = 'verification-docs';
 
-async function attachApplicantDetails(applications) {
-  const userIds = [...new Set(applications.map((app) => app.profile?.id).filter(Boolean))];
-  if (!userIds.length) return applications;
+async function attachProfileDetails(profiles) {
+  const userIds = [...new Set(profiles.map((p) => p.id).filter(Boolean))];
+  if (!userIds.length) return profiles;
 
   const [{ data: photoRows }, { data: docRows }, { data: verifRows }] = await Promise.all([
     supabaseAdmin.from('profile_photos').select('id, user_id, file_path, is_main, sort_order').in('user_id', userIds).order('sort_order', { ascending: true }),
@@ -34,7 +34,7 @@ async function attachApplicantDetails(applications) {
     supabaseAdmin.from('verifications').select('user_id, type, status').in('user_id', userIds),
   ]);
 
-  const videoPaths = applications.map((app) => app.profile?.verification_video_path).filter(Boolean);
+  const videoPaths = profiles.map((p) => p.verification_video_path).filter(Boolean);
   const [photoUrlMap, docUrlMap, videoUrlMap] = await Promise.all([
     getSignedUrls(PHOTOS_BUCKET, (photoRows || []).map((p) => p.file_path)),
     getSignedUrls(DOCS_BUCKET, (docRows || []).map((d) => d.file_path)),
@@ -60,23 +60,25 @@ async function attachApplicantDetails(applications) {
     verifByUser[v.user_id][v.type] = v.status;
   });
 
-  return applications.map((app) => {
-    if (!app.profile) return app;
-    const uid = app.profile.id;
+  return profiles.map((p) => {
     const verifications = {};
-    VERIFY_TYPES.forEach((type) => { verifications[type] = (verifByUser[uid] || {})[type] || 'not_submitted'; });
+    VERIFY_TYPES.forEach((type) => { verifications[type] = (verifByUser[p.id] || {})[type] || 'not_submitted'; });
 
     return {
-      ...app,
-      profile: {
-        ...app.profile,
-        verification_video_url: app.profile.verification_video_path ? (videoUrlMap[app.profile.verification_video_path] || null) : null,
-        photos: photosByUser[uid] || [],
-        verifications,
-        documents: docsByUser[uid] || {},
-      },
+      ...p,
+      verification_video_url: p.verification_video_path ? (videoUrlMap[p.verification_video_path] || null) : null,
+      photos: photosByUser[p.id] || [],
+      verifications,
+      documents: docsByUser[p.id] || {},
     };
   });
+}
+
+async function attachApplicantDetails(applications) {
+  const profiles = applications.map((app) => app.profile).filter(Boolean);
+  const enriched = await attachProfileDetails(profiles);
+  const byId = new Map(enriched.map((p) => [p.id, p]));
+  return applications.map((app) => (app.profile ? { ...app, profile: byId.get(app.profile.id) || app.profile } : app));
 }
 
 const PROFILE_DETAIL_FIELDS = 'id, full_name, phone, gender, birth_year, verification_status, region, region_detail, height, degree, university, job_major, job_minor, job_tertiary, job_custom, company_name, salary, asset, verification_video_path';
@@ -194,6 +196,163 @@ router.post('/journeys/:id/image', journeyImageUpload.single('image'), async (re
 
   if (error) return res.status(500).json({ error: '이미지 저장에 실패했습니다.' });
   res.json({ journey: data });
+});
+
+const ROSTER_PROFILE_FIELDS = 'id, full_name, gender, birth_year, verification_status';
+
+router.get('/journeys/:id/roster', async (req, res) => {
+  const { data: journey, error: journeyError } = await supabaseAdmin
+    .from('journeys')
+    .select('id, title, capacity_male, capacity_female')
+    .eq('id', req.params.id)
+    .single();
+  if (journeyError || !journey) return res.status(404).json({ error: '여행을 찾을 수 없습니다.' });
+
+  const [{ data: groups, error: groupsError }, { data: applications, error: appsError }] = await Promise.all([
+    supabaseAdmin.from('journey_groups').select('id, name, created_at').eq('journey_id', journey.id).order('created_at', { ascending: true }),
+    supabaseAdmin
+      .from('applications')
+      .select(`id, group_id, profile:profiles(${ROSTER_PROFILE_FIELDS})`)
+      .eq('journey_id', journey.id)
+      .eq('status', 'approved'),
+  ]);
+  if (groupsError || appsError) return res.status(500).json({ error: '매칭 현황을 불러오지 못했습니다.' });
+
+  const groupsWithMembers = (groups || []).map((g) => ({
+    ...g,
+    members: applications.filter((a) => a.group_id === g.id),
+  }));
+
+  const unassigned = applications.filter((a) => !a.group_id);
+  res.json({
+    journey,
+    groups: groupsWithMembers,
+    unassigned: {
+      male: unassigned.filter((a) => a.profile?.gender === 'male'),
+      female: unassigned.filter((a) => a.profile?.gender === 'female'),
+      other: unassigned.filter((a) => a.profile?.gender !== 'male' && a.profile?.gender !== 'female'),
+    },
+  });
+});
+
+router.post('/journeys/:id/groups', async (req, res) => {
+  const { application_ids: applicationIds } = req.body || {};
+  if (!Array.isArray(applicationIds) || !applicationIds.length) {
+    return res.status(400).json({ error: '팀에 포함할 신청자를 선택해주세요.' });
+  }
+
+  const { count } = await supabaseAdmin
+    .from('journey_groups')
+    .select('id', { count: 'exact', head: true })
+    .eq('journey_id', req.params.id);
+
+  const { data: group, error: groupError } = await supabaseAdmin
+    .from('journey_groups')
+    .insert({ journey_id: req.params.id, name: `${(count || 0) + 1}조` })
+    .select()
+    .single();
+  if (groupError) return res.status(500).json({ error: '팀 생성에 실패했습니다.' });
+
+  const { error: updateError } = await supabaseAdmin
+    .from('applications')
+    .update({ group_id: group.id })
+    .in('id', applicationIds)
+    .eq('journey_id', req.params.id);
+  if (updateError) return res.status(500).json({ error: '팀원 배정에 실패했습니다.' });
+
+  res.status(201).json({ group });
+});
+
+router.patch('/groups/:groupId', async (req, res) => {
+  const { add_ids: addIds, remove_ids: removeIds } = req.body || {};
+
+  if (Array.isArray(addIds) && addIds.length) {
+    const { error } = await supabaseAdmin.from('applications').update({ group_id: req.params.groupId }).in('id', addIds);
+    if (error) return res.status(500).json({ error: '팀원 추가에 실패했습니다.' });
+  }
+  if (Array.isArray(removeIds) && removeIds.length) {
+    const { error } = await supabaseAdmin.from('applications').update({ group_id: null }).in('id', removeIds).eq('group_id', req.params.groupId);
+    if (error) return res.status(500).json({ error: '팀원 제외에 실패했습니다.' });
+  }
+
+  res.json({ ok: true });
+});
+
+router.delete('/groups/:groupId', async (req, res) => {
+  const { error } = await supabaseAdmin.from('journey_groups').delete().eq('id', req.params.groupId);
+  if (error) return res.status(500).json({ error: '팀 삭제에 실패했습니다.' });
+  res.json({ ok: true });
+});
+
+const MEMBER_FIELDS = `id, username, full_name, phone, gender, birth_year, role, verification_status, created_at, ${PROFILE_DETAIL_FIELDS.split(', ').filter((f) => !['id', 'full_name', 'phone', 'gender', 'birth_year', 'verification_status'].includes(f)).join(', ')}`;
+
+router.get('/members', async (req, res) => {
+  const { verification, q } = req.query;
+  let query = supabaseAdmin.from('profiles').select(MEMBER_FIELDS).order('created_at', { ascending: false });
+
+  if (verification) query = query.eq('verification_status', verification);
+  if (q) query = query.or(`full_name.ilike.%${q}%,username.ilike.%${q}%,phone.ilike.%${q}%`);
+
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: '회원 목록을 불러오지 못했습니다.' });
+  res.json({ members: await attachProfileDetails(data) });
+});
+
+router.patch('/members/:id/role', async (req, res) => {
+  const { role } = req.body || {};
+  if (!['user', 'admin'].includes(role)) return res.status(400).json({ error: '올바르지 않은 권한 값입니다.' });
+
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .update({ role })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: '권한 변경에 실패했습니다.' });
+  res.json({ profile: data });
+});
+
+router.get('/revenue', async (req, res) => {
+  const { from, to, journey_id: journeyId } = req.query;
+
+  let query = supabaseAdmin
+    .from('payments')
+    .select('id, amount, status, created_at, journey_id, journey:journeys(id, title), user_id, profile:profiles(id, full_name)')
+    .in('status', ['paid', 'refunded'])
+    .order('created_at', { ascending: false });
+
+  if (from) query = query.gte('created_at', from);
+  if (to) query = query.lte('created_at', to);
+  if (journeyId) query = query.eq('journey_id', journeyId);
+
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: '매출 데이터를 불러오지 못했습니다.' });
+
+  const paid = data.filter((p) => p.status === 'paid');
+  const refunded = data.filter((p) => p.status === 'refunded');
+  const totalPaid = paid.reduce((sum, p) => sum + p.amount, 0);
+  const totalRefunded = refunded.reduce((sum, p) => sum + p.amount, 0);
+
+  const byJourneyMap = {};
+  paid.forEach((p) => {
+    const key = p.journey_id || 'unknown';
+    byJourneyMap[key] = byJourneyMap[key] || { journey_id: p.journey_id, title: p.journey?.title || '알 수 없음', amount: 0, count: 0 };
+    byJourneyMap[key].amount += p.amount;
+    byJourneyMap[key].count += 1;
+  });
+
+  res.json({
+    summary: {
+      total_paid: totalPaid,
+      total_refunded: totalRefunded,
+      net_revenue: totalPaid - totalRefunded,
+      paid_count: paid.length,
+      refunded_count: refunded.length,
+    },
+    by_journey: Object.values(byJourneyMap).sort((a, b) => b.amount - a.amount),
+    transactions: data.slice(0, 200),
+  });
 });
 
 router.patch('/verification/:userId', async (req, res) => {

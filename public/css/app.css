@@ -149,8 +149,26 @@
 .admin-verify-docs{display:flex;flex-direction:column;gap:4px;font-size:12px}
 .admin-doc-link{color:var(--ink);text-decoration:underline}
 
+.matching-group{border:1px solid var(--line);padding:16px 18px;margin-bottom:12px}
+.matching-group-head{display:flex;justify-content:space-between;align-items:center}
+.matching-group-head h4{font-family:var(--serif);font-size:16px;font-weight:400;margin:0}
+.matching-group-members{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.matching-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:20px;padding:4px 6px 4px 12px;font-size:12px}
+.matching-chip button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px}
+.matching-pool-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.matching-pool-grid h4{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.matching-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);margin-bottom:8px;font-size:13px;cursor:pointer}
+.matching-card input{margin:0}
+.matching-card span:nth-child(2){flex:1}
+
+.revenue-stats{display:flex;gap:16px;flex-wrap:wrap}
+.revenue-stat{flex:1;min-width:160px;border:1px solid var(--line);padding:20px 22px}
+.revenue-stat-label{display:block;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.revenue-stat-value{display:block;font-family:var(--serif);font-size:26px}
+
 @media(max-width:900px){
   .admin-detail-grid{grid-template-columns:1fr}
+  .matching-pool-grid{grid-template-columns:1fr}
 }
 
 .journey-admin-list{display:flex;flex-direction:column;gap:12px;margin-top:24px}
