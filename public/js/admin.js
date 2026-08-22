@@ -7,12 +7,73 @@ const statusTabs = document.getElementById('status-tabs');
 const logoutLink = document.getElementById('logout-link');
 
 const STATUS_LABEL = { pending: '검토 중', approved: '승인됨', rejected: '거절됨', cancelled: '취소됨' };
+const VERIFY_LABEL = { marital: '혼인관계증명서', job: '직업', education: '학력', income: '소득', asset: '자산' };
+const VERIFY_STATUS_LABEL = { verified: '인증완료', pending: '검토중', rejected: '거절됨', not_submitted: '미제출' };
 let currentStatus = '';
 
 function esc(str) {
   const div = document.createElement('div');
   div.textContent = str ?? '';
   return div.innerHTML;
+}
+
+function jobLabel(p) {
+  const parts = [p.job_major, p.job_minor, p.job_tertiary].filter(Boolean);
+  if (p.job_custom) parts.push(p.job_custom);
+  return parts.length ? parts.join(' · ') : '—';
+}
+
+function renderApplicantDetail(p) {
+  const photosHtml = (p.photos || []).length
+    ? p.photos.map((ph) => `<a href="${esc(ph.url)}" target="_blank" rel="noopener"><img src="${esc(ph.url)}" alt="프로필 사진" class="admin-photo-thumb${ph.is_main ? ' is-main' : ''}"></a>`).join('')
+    : '<span class="empty-state" style="padding:0">등록된 사진 없음</span>';
+
+  const videoHtml = p.verification_video_url
+    ? `<video src="${esc(p.verification_video_url)}" controls class="admin-video-preview"></video>`
+    : '<span class="empty-state" style="padding:0">미제출</span>';
+
+  const verifTypes = ['marital', 'job', 'education', 'income', 'asset'];
+  const verifHtml = verifTypes.map((type) => {
+    const status = (p.verifications || {})[type] || 'not_submitted';
+    const docs = (p.documents || {})[type] || [];
+    const docsHtml = docs.length
+      ? docs.map((d) => `<a href="${esc(d.url)}" target="_blank" rel="noopener" class="admin-doc-link">${esc(d.file_name || '파일')}</a>`).join('')
+      : '<span style="color:var(--muted)">제출된 서류 없음</span>';
+    return `
+      <div class="admin-verify-row">
+        <div class="admin-verify-head">
+          <span>${VERIFY_LABEL[type]}</span>
+          <span class="badge ${status === 'not_submitted' ? '' : status}">${VERIFY_STATUS_LABEL[status]}</span>
+        </div>
+        <div class="admin-verify-docs">${docsHtml}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="admin-detail-grid">
+      <div>
+        <div class="admin-detail-label">사진</div>
+        <div class="admin-photo-row">${photosHtml}</div>
+        <div class="admin-detail-label" style="margin-top:18px">신원확인 영상</div>
+        ${videoHtml}
+      </div>
+      <div>
+        <div class="admin-detail-label">기본 정보</div>
+        <div class="admin-detail-kv">
+          <span>거주지역</span><span>${esc([p.region, p.region_detail].filter(Boolean).join(' ') || '—')}</span>
+          <span>키</span><span>${p.height ? esc(p.height) + ' cm' : '—'}</span>
+          <span>학력</span><span>${esc([p.degree, p.university].filter(Boolean).join(' · ') || '—')}</span>
+          <span>직업</span><span>${esc(jobLabel(p))}</span>
+          <span>회사명</span><span>${esc(p.company_name || '—')}</span>
+          <span>연봉</span><span>${p.salary ? esc(p.salary) + '만원' : '—'}</span>
+          <span>자산</span><span>${esc(p.asset || '—')}</span>
+        </div>
+      </div>
+      <div>
+        <div class="admin-detail-label">신원검증 자료</div>
+        ${verifHtml}
+      </div>
+    </div>`;
 }
 
 async function loadApplications() {
@@ -45,7 +106,13 @@ async function loadApplications() {
           <td>${esc(j.title || '—')}</td>
           <td><span class="badge ${app.status}">${STATUS_LABEL[app.status] || app.status}</span></td>
           <td>${new Date(app.created_at).toLocaleDateString('ko-KR')}</td>
-          <td>${actions}</td>
+          <td>
+            ${actions}
+            <button type="button" class="link-btn admin-detail-toggle" data-detail-id="${app.id}" style="margin-top:8px">상세보기 ▾</button>
+          </td>
+        </tr>
+        <tr class="admin-detail-row" id="detail-${app.id}" style="display:none">
+          <td colspan="7">${renderApplicantDetail(p)}</td>
         </tr>`;
     }).join('');
 
@@ -72,6 +139,15 @@ async function loadApplications() {
           alert(err.message);
           btn.disabled = false;
         }
+      });
+    });
+
+    adminContent.querySelectorAll('.admin-detail-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const row = document.getElementById(`detail-${btn.dataset.detailId}`);
+        const isOpen = row.style.display !== 'none';
+        row.style.display = isOpen ? 'none' : 'table-row';
+        btn.textContent = isOpen ? '상세보기 ▾' : '접기 ▴';
       });
     });
   } catch (err) {
