@@ -44,7 +44,8 @@ function contractHtml(application) {
 
       <h4>제1조 계약당사자</h4>
       <p>회사: VERSOI(베르소이) / 브랜드: NEXT CHAPTER<br>
-      대표자·사업자등록번호·${isOverseas ? '여행업' : '국내결혼중개업'} 신고번호·주소·연락처: [사업자정보 - 오픈 전 입력]<br>
+      대표자: 이재희 · 사업자등록번호: 550-38-01564 · 국내결혼중개업 신고번호: 제0000-000000호 · 여행업 등록번호: 제0000-0000호<br>
+      주소: 경기도 성남시 수정구 창업로 18, 876호(시흥동) · 연락처: versoi.labs@gmail.com<br>
       회원 성명: ${esc(p.full_name || '—')} · 생년월일: ${esc(p.birth_year || '—')} · 연락처: ${esc(p.phone || '—')} · 이메일: ${esc(application.user_email || '—')}</p>
 
       <h4>제2조 신청상품</h4>
@@ -91,7 +92,7 @@ function contractHtml(application) {
       <p style="color:var(--muted);margin-bottom:16px">상품 상세페이지의 정보가 결제 시점에 계약서에 저장되어 개별 계약조건이 됩니다.</p>
 
       <h4>제1조 여행업자</h4>
-      <p>VERSOI(베르소이) / NEXT CHAPTER<br>여행업 등록번호·사업자정보: [사업자정보 - 오픈 전 입력]</p>
+      <p>VERSOI(베르소이) / NEXT CHAPTER<br>대표자: 이재희 · 사업자등록번호: 550-38-01564 · 여행업 등록번호: 제0000-0000호<br>주소: 경기도 성남시 수정구 창업로 18, 876호(시흥동)</p>
 
       <h4>제2조 상품정보</h4>
       <p>상품명: ${esc(j.title || '—')} · 여행기간: ${esc(j.duration || '추후 공개')} · 목적지: ${esc([j.destination_country, j.destination_city].filter(Boolean).join(' · ') || '추후 공개')} · 참가구성: ${esc(partySize)}<br>포함 사항: 숙박, 교통, 식사, 관광·체험 및 매칭 프로그램. 상세 포함·불포함 사항은 상품 상세페이지를 따릅니다.</p>
