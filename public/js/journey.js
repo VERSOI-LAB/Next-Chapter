@@ -44,6 +44,23 @@ async function loadJourney() {
     document.getElementById('j-price').textContent = formatPrice(journey.price);
     document.getElementById('j-start').textContent = formatDate(journey.starts_at);
 
+    const serviceLabel = journey.type === 'domestic' ? '국내결혼중개 서비스 1회'
+      : journey.type === 'overseas' ? '해외결혼중개 서비스 1회'
+      : '결혼중개 서비스 1회';
+    const includedItems = [
+      serviceLabel,
+      '참가자 검증 및 선발',
+      journey.duration ? `${journey.duration} 매칭 프로그램` : '매칭 프로그램',
+      '숙박', '교통', '식사', '체험 프로그램',
+    ];
+    const includedList = document.getElementById('j-included');
+    includedList.innerHTML = '';
+    includedItems.forEach((item) => {
+      const li = document.createElement('li');
+      li.textContent = item;
+      includedList.appendChild(li);
+    });
+
     if (journey.status === 'closed') {
       applyBtn.disabled = true;
       applyBtn.textContent = '마감되었습니다';
