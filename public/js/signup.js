@@ -99,6 +99,12 @@ phoneInput.addEventListener('input', () => {
   }
 });
 
+const consentMarketing = document.getElementById('consent-marketing');
+const marketingChannels = document.getElementById('marketing-channels');
+consentMarketing.addEventListener('change', () => {
+  marketingChannels.style.display = consentMarketing.checked ? 'flex' : 'none';
+});
+
 signupForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   signupMsg.textContent = '';
@@ -125,6 +131,17 @@ signupForm.addEventListener('submit', async (e) => {
     return;
   }
 
+  const consentMsg = document.getElementById('consent-msg');
+  const requiredConsents = ['consent-terms', 'consent-privacy-check', 'consent-privacy-collect', 'consent-age19'];
+  const missingConsent = requiredConsents.some((id) => !document.getElementById(id).checked);
+  if (missingConsent) {
+    consentMsg.textContent = '필수 동의 항목을 모두 체크해주세요.';
+    consentMsg.className = 'form-msg error';
+    return;
+  }
+  consentMsg.textContent = '';
+  consentMsg.className = 'form-msg';
+
   const submitBtn = signupForm.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
 
@@ -136,6 +153,15 @@ signupForm.addEventListener('submit', async (e) => {
       birth_year: Number(birthYearInput.value),
       phone: verifiedPhone,
       email: document.getElementById('email').value.trim(),
+      agree_terms: document.getElementById('consent-terms').checked,
+      agree_privacy_check: document.getElementById('consent-privacy-check').checked,
+      agree_privacy_collect: document.getElementById('consent-privacy-collect').checked,
+      agree_age19: document.getElementById('consent-age19').checked,
+      agree_marketing: document.getElementById('consent-marketing').checked,
+      agree_marketing_sms: document.getElementById('consent-sms').checked,
+      agree_marketing_email: document.getElementById('consent-marketing-email').checked,
+      agree_marketing_message: document.getElementById('consent-message').checked,
+      agree_marketing_push: document.getElementById('consent-push').checked,
     };
 
     const { session } = await apiFetch('/auth/signup', { method: 'POST', body: payload });

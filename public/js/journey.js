@@ -72,10 +72,19 @@ async function loadJourney() {
   }
 }
 
+function consentsChecked() {
+  return document.getElementById('consent-member-info').checked && document.getElementById('consent-third-party').checked;
+}
+
 async function createApplication() {
   const { application } = await apiFetch('/applications', {
     method: 'POST',
-    body: { journey_id: currentJourney.id, message: document.getElementById('message').value.trim() || null },
+    body: {
+      journey_id: currentJourney.id,
+      message: document.getElementById('message').value.trim() || null,
+      agree_member_info_share: document.getElementById('consent-member-info').checked,
+      agree_travel_third_party: document.getElementById('consent-third-party').checked,
+    },
   });
   return application;
 }
@@ -88,6 +97,12 @@ applyBtn.addEventListener('click', async () => {
 
   if (!getSession()) {
     window.location.href = `login.html?next=journey.html?slug=${encodeURIComponent(slug)}`;
+    return;
+  }
+
+  if (!consentsChecked()) {
+    applyMsg.textContent = '필수 동의 항목을 모두 체크해주세요.';
+    applyMsg.className = 'form-msg error';
     return;
   }
 
@@ -113,6 +128,12 @@ applyBtn.addEventListener('click', async () => {
 applySaveBtn.addEventListener('click', async () => {
   applyMsg.textContent = '';
   applyMsg.className = 'form-msg';
+
+  if (!consentsChecked()) {
+    applyMsg.textContent = '필수 동의 항목을 모두 체크해주세요.';
+    applyMsg.className = 'form-msg error';
+    return;
+  }
 
   const fullNameKr = document.getElementById('passport-name-kr').value.trim();
   const fullNameEn = document.getElementById('passport-name-en').value.trim();

@@ -3,6 +3,7 @@ const { supabaseAnon, supabaseAdmin } = require('../lib/supabase');
 const { requireAuth } = require('../middleware/auth');
 const phoneVerification = require('../lib/phoneVerification');
 const { getSignedUrl } = require('../lib/storage');
+const { CONSENT_VERSION, CONSENT_TYPES } = require('../lib/consents');
 
 const router = express.Router();
 
@@ -33,10 +34,18 @@ router.post('/phone/verify-code', (req, res) => {
 });
 
 router.post('/signup', async (req, res) => {
-  const { username, email, password, full_name, phone, birth_year } = req.body || {};
+  const {
+    username, email, password, full_name, phone, birth_year,
+    agree_terms: agreeTerms, agree_privacy_check: agreePrivacyCheck, agree_privacy_collect: agreePrivacyCollect, agree_age19: agreeAge19,
+    agree_marketing: agreeMarketing, agree_marketing_sms: agreeMarketingSms, agree_marketing_email: agreeMarketingEmail,
+    agree_marketing_message: agreeMarketingMessage, agree_marketing_push: agreeMarketingPush,
+  } = req.body || {};
 
   if (!username || !email || !password || !full_name || !phone || !birth_year) {
     return res.status(400).json({ error: '모든 필수 항목을 입력해주세요.' });
+  }
+  if (!agreeTerms || !agreePrivacyCheck || !agreePrivacyCollect || !agreeAge19) {
+    return res.status(400).json({ error: '필수 동의 항목을 모두 체크해주세요.' });
   }
   if (!USERNAME_RE.test(username)) {
     return res.status(400).json({ error: '아이디는 영문, 숫자, _ 조합 4~20자여야 합니다.' });
@@ -72,6 +81,19 @@ router.post('/signup', async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
 
   phoneVerification.clear(phone);
+
+  const consentRows = [
+    { type: CONSENT_TYPES.TERMS, agreed: true },
+    { type: CONSENT_TYPES.PRIVACY_CHECK, agreed: true },
+    { type: CONSENT_TYPES.PRIVACY_COLLECT, agreed: true },
+    { type: CONSENT_TYPES.AGE19, agreed: true },
+    { type: CONSENT_TYPES.MARKETING, agreed: Boolean(agreeMarketing) },
+    { type: CONSENT_TYPES.MARKETING_SMS, agreed: Boolean(agreeMarketingSms) },
+    { type: CONSENT_TYPES.MARKETING_EMAIL, agreed: Boolean(agreeMarketingEmail) },
+    { type: CONSENT_TYPES.MARKETING_MESSAGE, agreed: Boolean(agreeMarketingMessage) },
+    { type: CONSENT_TYPES.MARKETING_PUSH, agreed: Boolean(agreeMarketingPush) },
+  ].map((row) => ({ ...row, user_id: data.user.id, version: CONSENT_VERSION }));
+  await supabaseAdmin.from('consents').insert(consentRows);
 
   res.status(201).json({ user: data.user, session: data.session });
 });
