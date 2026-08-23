@@ -25,7 +25,7 @@ async function uploadStoryImage(folder, id, file) {
   return supabaseAdmin.storage.from(STORY_IMAGES_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-const JOURNEY_FIELDS = ['slug', 'title', 'type', 'duration', 'capacity_male', 'capacity_female', 'price', 'status', 'summary', 'description', 'image_url', 'starts_at', 'itinerary', 'destination_country', 'destination_city'];
+const JOURNEY_FIELDS = ['slug', 'title', 'type', 'duration', 'capacity_male', 'capacity_female', 'price', 'status', 'summary', 'description', 'image_url', 'starts_at', 'itinerary', 'destination_country', 'destination_city', 'matching_service_amount', 'travel_service_amount'];
 
 function pickJourneyFields(body) {
   const out = {};
@@ -134,6 +134,14 @@ router.get('/journeys', async (req, res) => {
   res.json({ journeys: data });
 });
 
+function applyPriceBreakdown(payload) {
+  const { matching_service_amount: matching, travel_service_amount: travel } = payload;
+  if (matching === undefined || matching === null || travel === undefined || travel === null) return;
+  const supply = Number(matching) + Number(travel);
+  const vat = Math.round(supply * 0.1);
+  payload.price = supply + vat;
+}
+
 function slugify(title) {
   const base = title
     .toLowerCase()
@@ -150,6 +158,7 @@ router.post('/journeys', async (req, res) => {
   }
   if (!payload.slug) payload.slug = slugify(payload.title);
   if (!payload.status) payload.status = 'draft';
+  applyPriceBreakdown(payload);
 
   const { data, error } = await supabaseAdmin.from('journeys').insert(payload).select().single();
   if (error) return res.status(400).json({ error: error.message });
@@ -158,6 +167,7 @@ router.post('/journeys', async (req, res) => {
 
 router.put('/journeys/:id', async (req, res) => {
   const payload = pickJourneyFields(req.body || {});
+  applyPriceBreakdown(payload);
   const { data, error } = await supabaseAdmin
     .from('journeys')
     .update(payload)

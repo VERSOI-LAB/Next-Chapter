@@ -241,7 +241,18 @@ function journeyFormHtml(j) {
         </div>
         <div class="field-row">
           <div class="field">
-            <label>참가비 (원)</label>
+            <label>결혼중개서비스 공급가액 (원)</label>
+            <input type="number" name="matching_service_amount" value="${journey.matching_service_amount ?? ''}" min="0">
+          </div>
+          <div class="field">
+            <label>여행서비스 공급가액 (원)</label>
+            <input type="number" name="travel_service_amount" value="${journey.travel_service_amount ?? ''}" min="0">
+          </div>
+        </div>
+        <p class="form-msg" id="price-breakdown-preview" style="margin-bottom:14px"></p>
+        <div class="field-row">
+          <div class="field">
+            <label>참가비 (원, 결제 화면에 표시되는 최종 금액)</label>
             <input type="number" name="price" value="${journey.price ?? ''}" min="0">
           </div>
           <div class="field">
@@ -279,6 +290,25 @@ function bindJourneyForm(journey) {
     durationCustom.style.display = durationPreset.value === '__custom' ? 'block' : 'none';
   });
 
+  const priceBreakdownPreview = document.getElementById('price-breakdown-preview');
+  function updatePriceBreakdownPreview() {
+    const matching = Number(form.matching_service_amount.value);
+    const travel = Number(form.travel_service_amount.value);
+    if (!form.matching_service_amount.value || !form.travel_service_amount.value) {
+      priceBreakdownPreview.textContent = '';
+      return;
+    }
+    const supply = matching + travel;
+    const vat = Math.round(supply * 0.1);
+    const total = supply + vat;
+    form.price.value = total;
+    priceBreakdownPreview.textContent = `결혼중개 서비스 ${matching.toLocaleString('ko-KR')}원 + 여행서비스 ${travel.toLocaleString('ko-KR')}원 + 부가가치세 ${vat.toLocaleString('ko-KR')}원 = 최종 결제금액 ${total.toLocaleString('ko-KR')}원`;
+    priceBreakdownPreview.className = 'form-msg success';
+  }
+  form.matching_service_amount.addEventListener('input', updatePriceBreakdownPreview);
+  form.travel_service_amount.addEventListener('input', updatePriceBreakdownPreview);
+  updatePriceBreakdownPreview();
+
   document.getElementById('journey-form-close').addEventListener('click', () => { wrap.innerHTML = ''; });
 
   form.addEventListener('submit', async (e) => {
@@ -298,6 +328,8 @@ function bindJourneyForm(journey) {
       capacity_male: Number(form.capacity_male.value) || 0,
       capacity_female: Number(form.capacity_female.value) || 0,
       price: form.price.value ? Number(form.price.value) : null,
+      matching_service_amount: form.matching_service_amount.value ? Number(form.matching_service_amount.value) : null,
+      travel_service_amount: form.travel_service_amount.value ? Number(form.travel_service_amount.value) : null,
       starts_at: form.starts_at.value || null,
       status: form.status.value,
     };

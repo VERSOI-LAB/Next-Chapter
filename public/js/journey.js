@@ -84,10 +84,8 @@ applyBtn.addEventListener('click', async () => {
 
   applyBtn.disabled = true;
   try {
-    await createApplication();
-    applyMsg.textContent = '신청이 접수되었습니다. 검증 및 선발 절차 안내를 기다려주세요.';
-    applyMsg.className = 'form-msg success';
-    applyForm.reset();
+    const application = await createApplication();
+    window.location.href = `payment.html?application=${application.id}`;
   } catch (err) {
     applyMsg.textContent = err.message;
     applyMsg.className = 'form-msg error';

@@ -45,7 +45,7 @@ router.get('/me', requireAuth, async (req, res) => {
 router.get('/:id', requireAuth, async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from('applications')
-    .select('*, journey:journeys(id, slug, title, type, duration, starts_at, image_url, price, destination_country, destination_city)')
+    .select('*, journey:journeys(id, slug, title, type, duration, starts_at, image_url, price, destination_country, destination_city, matching_service_amount, travel_service_amount)')
     .eq('id', req.params.id)
     .eq('user_id', req.user.id)
     .single();
