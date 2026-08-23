@@ -268,6 +268,7 @@
 .verify-list-item{display:flex;justify-content:space-between;align-items:center;gap:14px;background:var(--paper2);padding:22px 24px;border-radius:10px}
 .verify-list-label{font-size:13.5px;color:var(--ink)}
 .required-tag{font-size:9px;color:var(--accent);border:1px solid var(--accent);padding:2px 6px;border-radius:3px;margin-left:6px;vertical-align:middle}
+.signature-tag{font-size:9px;color:var(--muted);border:1px solid var(--line);padding:2px 6px;border-radius:3px;margin-left:6px;vertical-align:middle}
 
 .verify-status-badge{display:inline-block;font-size:11px;padding:5px 12px;border-radius:20px;letter-spacing:.02em;border:1px solid transparent;min-width:64px;text-align:center;box-sizing:border-box}
 .verify-status-badge.verified{background:#eaf3ec;color:#2f6b3c}

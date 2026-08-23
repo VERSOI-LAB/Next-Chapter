@@ -45,11 +45,19 @@ function renderJourneyCard(j) {
 }
 
 async function loadJourneys() {
-  const grid = document.querySelector('[data-journeys-grid]');
-  if (!grid) return;
+  const grids = document.querySelectorAll('[data-journeys-grid]');
+  if (!grids.length) return;
   try {
     const { journeys } = await apiFetch('/journeys');
-    grid.innerHTML = journeys.map(renderJourneyCard).join('');
+    grids.forEach((grid) => {
+      const tier = grid.dataset.journeysGrid;
+      const filtered = !tier ? journeys
+        : tier === 'signature' ? journeys.filter((j) => j.type === 'signature')
+        : journeys.filter((j) => j.type !== 'signature');
+      grid.innerHTML = filtered.length
+        ? filtered.map(renderJourneyCard).join('')
+        : '<article class="card"><div class="card-body"><p class="card-meta">준비 중입니다.</p></div></article>';
+    });
   } catch (e) {
     console.error('Failed to load journeys', e);
   }

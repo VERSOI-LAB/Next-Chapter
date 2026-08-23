@@ -3,6 +3,7 @@ const multer = require('multer');
 const { supabaseAdmin } = require('../lib/supabase');
 const { requireAuth } = require('../middleware/auth');
 const { uploadFile, getSignedUrls, removeFile } = require('../lib/storage');
+const { recomputeSelfProfileCompleted } = require('../lib/eligibility');
 
 const router = express.Router();
 const upload = multer({ limits: { fileSize: 8 * 1024 * 1024 } });
@@ -58,6 +59,7 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: '사진 저장에 실패했습니다.' });
+  await recomputeSelfProfileCompleted(supabaseAdmin, req.user.id);
 
   const [withUrl] = await withSignedUrls([data]);
   res.status(201).json({ photo: withUrl });
@@ -112,6 +114,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
     }
   }
 
+  await recomputeSelfProfileCompleted(supabaseAdmin, req.user.id);
   res.json({ ok: true });
 });
 

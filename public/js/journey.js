@@ -53,13 +53,13 @@ async function loadJourney() {
       journey.duration ? `${journey.duration} 매칭 프로그램` : '매칭 프로그램',
       '숙박', '교통', '식사', '체험 프로그램',
     ];
-    const includedList = document.getElementById('j-included');
-    includedList.innerHTML = '';
-    includedItems.forEach((item) => {
-      const li = document.createElement('li');
-      li.textContent = item;
-      includedList.appendChild(li);
-    });
+    fillList('j-included', includedItems);
+
+    const requirementItems = ['마이페이지 · 내 프로필 작성 완료', '마이페이지 · 신원검증 · 혼인관계증명서 제출'];
+    if (journey.type === 'signature') {
+      requirementItems.push('마이페이지 · 신원검증 · 직업·학력·소득 증빙 제출 (SIGNATURE 전용)');
+    }
+    fillList('j-requirements', requirementItems);
 
     if (journey.status === 'closed') {
       applyBtn.disabled = true;
@@ -67,9 +67,60 @@ async function loadJourney() {
     } else if (journey.status === 'coming_soon') {
       applyBtn.textContent = '대기 신청하기';
     }
+
+    await checkEligibility();
   } catch (err) {
     document.getElementById('journey-root').innerHTML = `<div class="empty-state">${err.message}</div>`;
   }
+}
+
+function fillList(id, items) {
+  const list = document.getElementById(id);
+  list.innerHTML = '';
+  items.forEach((item) => {
+    const li = document.createElement('li');
+    li.textContent = item;
+    list.appendChild(li);
+  });
+}
+
+const VERIFY_LABELS = { marital: '혼인관계증명서', job: '직업 증빙', education: '학력 증빙', income: '소득 증빙' };
+
+async function checkEligibility() {
+  const notice = document.getElementById('eligibility-notice');
+  if (!getSession() || journeyClosedOrDisabled()) return;
+
+  try {
+    const query = currentJourney.type === 'signature' ? '?journey_type=signature' : '';
+    const eligibility = await apiFetch(`/profile/eligibility${query}`);
+    if (eligibility.eligible) {
+      notice.style.display = 'none';
+      return;
+    }
+
+    const parts = [];
+    if (!eligibility.profile_complete) {
+      parts.push('내 프로필의 필수 정보와 사진 3장 이상을 모두 채워주세요.');
+    }
+    if (eligibility.missing_verify_types?.length) {
+      const labels = eligibility.missing_verify_types.map((t) => VERIFY_LABELS[t] || t).join(', ');
+      parts.push(`${labels} 서류를 제출해주세요.`);
+    }
+
+    notice.innerHTML = `
+      <p style="color:var(--accent-dark);margin-bottom:8px">이 여행에 신청하려면 아래 항목을 먼저 완료해주세요.</p>
+      <p style="color:var(--muted)">${parts.join(' ')}</p>
+      <a href="mypage.html" class="link-btn" style="display:inline-block;margin-top:10px">마이페이지에서 완료하기 →</a>
+    `;
+    notice.style.display = '';
+    applyBtn.disabled = true;
+  } catch (err) {
+    // eligibility pre-check is a UX convenience; the server re-validates on submit regardless
+  }
+}
+
+function journeyClosedOrDisabled() {
+  return currentJourney?.status === 'closed';
 }
 
 function consentsChecked() {

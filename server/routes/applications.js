@@ -2,6 +2,7 @@ const express = require('express');
 const { supabaseAdmin } = require('../lib/supabase');
 const { requireAuth } = require('../middleware/auth');
 const { CONSENT_VERSION, CONSENT_TYPES } = require('../lib/consents');
+const { getEligibility } = require('../lib/eligibility');
 
 const router = express.Router();
 
@@ -14,12 +15,17 @@ router.post('/', requireAuth, async (req, res) => {
 
   const { data: journey, error: journeyError } = await supabaseAdmin
     .from('journeys')
-    .select('id, status')
+    .select('id, status, type')
     .eq('id', journey_id)
     .single();
 
   if (journeyError || !journey) return res.status(404).json({ error: '여행을 찾을 수 없습니다.' });
   if (!['open', 'coming_soon'].includes(journey.status)) return res.status(400).json({ error: '현재 신청할 수 없는 여행입니다.' });
+
+  const eligibility = await getEligibility(supabaseAdmin, req.user.id, journey.type);
+  if (!eligibility.eligible) {
+    return res.status(403).json({ error: '신청 조건을 아직 충족하지 못했습니다. 마이페이지에서 필요한 항목을 완료해주세요.', eligibility });
+  }
 
   const { data, error } = await supabaseAdmin
     .from('applications')

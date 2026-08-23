@@ -3,6 +3,7 @@ const multer = require('multer');
 const { supabaseAdmin } = require('../lib/supabase');
 const { requireAuth } = require('../middleware/auth');
 const { uploadFile, getSignedUrl, removeFile } = require('../lib/storage');
+const { recomputeSelfProfileCompleted, getEligibility } = require('../lib/eligibility');
 
 const router = express.Router();
 const upload = multer({ limits: { fileSize: 50 * 1024 * 1024 } });
@@ -37,16 +38,18 @@ router.put('/self', requireAuth, async (req, res) => {
   for (const key of SELF_PROFILE_FIELDS) {
     if (req.body[key] !== undefined) payload[key] = req.body[key] === '' ? null : req.body[key];
   }
-  payload.self_profile_completed = true;
 
-  const { data, error } = await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from('profiles')
     .update(payload)
-    .eq('id', req.user.id)
-    .select()
-    .single();
-
+    .eq('id', req.user.id);
   if (error) return res.status(500).json({ error: '프로필 저장에 실패했습니다.' });
+
+  await recomputeSelfProfileCompleted(supabaseAdmin, req.user.id);
+
+  const { data, error: fetchError } = await supabaseAdmin.from('profiles').select('*').eq('id', req.user.id).single();
+  if (fetchError) return res.status(500).json({ error: '프로필 저장에 실패했습니다.' });
+
   res.json({ profile: data });
 });
 
@@ -86,6 +89,12 @@ router.post('/verification-video', requireAuth, upload.single('video'), async (r
 
   const url = await getSignedUrl(VIDEO_BUCKET, data.verification_video_path);
   res.status(201).json({ url });
+});
+
+router.get('/eligibility', requireAuth, async (req, res) => {
+  const journeyType = req.query.journey_type === 'signature' ? 'signature' : null;
+  const eligibility = await getEligibility(supabaseAdmin, req.user.id, journeyType);
+  res.json(eligibility);
 });
 
 module.exports = router;
