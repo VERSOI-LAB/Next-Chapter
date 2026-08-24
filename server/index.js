@@ -34,7 +34,7 @@ app.use('/api/verifications', verificationRoutes);
 app.use('/api/story', storyRoutes);
 app.use('/api/passport', passportRoutes);
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
