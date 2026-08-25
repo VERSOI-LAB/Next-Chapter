@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>여행약관 — NEXT CHAPTER</title>
+<title>Contact — NEXT CHAPTER</title>
+<meta name="description" content="NEXT CHAPTER — 검증된 30을 위한 프라이빗 여행형 매칭 저니">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
@@ -32,39 +33,36 @@
 </header>
 
 <main>
-<section class="section tight" style="padding-top:150px;max-width:760px">
-  <div class="eyebrow">여행약관</div>
-  <h1 class="display" style="font-size:clamp(28px,4vw,44px)">여행계약조건</h1>
-  <p class="lead" style="margin-bottom:8px">상품별 상세페이지의 정보가 결제 시점에 계약서에 저장되어 개별 계약조건이 됩니다. 아래는 공통 계약조건입니다.</p>
+<section class="section tight" style="padding-top:150px;max-width:560px;margin-left:auto;margin-right:auto">
+  <div class="eyebrow">Contact</div>
+  <h1 class="display" style="font-size:clamp(28px,4vw,44px)">문의하기</h1>
+  <p class="lead" style="margin-bottom:36px">서비스 이용, 상품 및 참가조건에 관해 궁금한 점을 남겨주시면 확인 후 이메일로 답변드립니다.</p>
 
-  <div style="margin-top:40px;font-size:15px;line-height:1.9;color:var(--ink)">
-    <h2>제1조 여행업자</h2>
-    <p>VERSOI(베르소이) / NEXT CHAPTER<br>여행업 등록번호: 제0000-0000호 · 사업자등록번호: 550-38-01564<br>주소: 경기도 성남시 수정구 창업로 18, 876호(시흥동)</p>
+  <form id="contact-form">
+    <div class="field">
+      <label for="c-name">이름</label>
+      <input type="text" id="c-name" name="name" required>
+    </div>
+    <div class="field">
+      <label for="c-email">이메일 (답변 받으실 주소)</label>
+      <input type="email" id="c-email" name="email" required>
+    </div>
+    <div class="field">
+      <label for="c-phone">연락처 (선택)</label>
+      <input type="tel" id="c-phone" name="phone" placeholder="010-0000-0000">
+    </div>
+    <div class="field">
+      <label for="c-message">문의 내용</label>
+      <textarea id="c-message" name="message" rows="6" required placeholder="문의하실 내용을 남겨주세요"></textarea>
+    </div>
+    <div style="position:absolute;left:-9999px" aria-hidden="true">
+      <label for="c-website">Website</label>
+      <input type="text" id="c-website" name="website" tabindex="-1" autocomplete="off">
+    </div>
 
-    <h2>제2조 상품정보</h2>
-    <p>상품명, 여행기간, 출발지·도착지, 참가구성, 숙박, 교통, 식사, 관광·체험, 포함·불포함 사항, 가격은 상품 상세페이지에 표시됩니다.</p>
-
-    <h2>제3조 계약성립</h2>
-    <p>회원이 상품내용과 조건을 확인하고 결제하고 회사가 신청을 승인하면 여행계약이 성립합니다. 참가자 선발을 전제로 한 경우 최종 참가확정은 팀 확정 절차에 따릅니다.</p>
-
-    <h2>제4조 일정변경</h2>
-    <p>기상악화, 교통기관 사정, 시설 운영중단, 안전상 필요, 천재지변 등 불가피한 사유가 있는 경우 관계 법령에 따라 일정 또는 프로그램을 변경할 수 있습니다.</p>
-
-    <h2>제5조 최소출발인원</h2>
-    <p>상품별 최소출발인원은 상품페이지에 표시합니다. 미충족으로 회사가 여행을 취소하는 경우 관계 법령 및 계약조건에 따라 환불합니다.</p>
-
-    <h2>제6조 회원의 의무</h2>
-    <p>일정·안전수칙·시설규칙을 준수하고 다른 참가자를 존중해야 합니다.</p>
-
-    <h2>제7조 중도이탈</h2>
-    <p>회원의 개인사정으로 여행을 중도 이탈하는 경우 원칙적으로 환불하지 않습니다. 회원 귀책으로 발생한 추가 비용은 회원이 부담할 수 있습니다. 회사 귀책 또는 법령상 환불사유는 예외입니다.</p>
-
-    <h2>제8조 보험</h2>
-    <p>여행자보험 가입 여부와 보장내용은 상품별로 표시하며 보험금 지급은 보험약관에 따릅니다.</p>
-
-    <h2>제9조 취소·환불</h2>
-    <p>별도 <a href="refund-policy.html">취소·환불규정</a> 및 관계 법령에 따릅니다.</p>
-  </div>
+    <button type="submit" class="btn">문의 보내기</button>
+    <div class="form-msg" id="contact-msg"></div>
+  </form>
 </section>
 </main>
 
@@ -111,5 +109,6 @@
 
 <script src="js/api.js"></script>
 <script src="js/main.js"></script>
+<script src="js/contact.js"></script>
 </body>
 </html>

@@ -40,6 +40,7 @@
     <button type="button" data-section="matching">매칭 관리</button>
     <button type="button" data-section="bookings">예약 관리</button>
     <button type="button" data-section="revenue">매출 관리</button>
+    <button type="button" data-section="contact">문의 관리</button>
     <button type="button" data-section="permissions" id="permissions-tab-btn" style="display:none">권한 설정</button>
   </div>
 
@@ -179,6 +180,18 @@
       </div>
     </div>
     <div id="revenue-content">
+      <div class="empty-state">불러오는 중…</div>
+    </div>
+  </div>
+
+  <div id="panel-contact" class="mypage-panel">
+    <div class="admin-tabs" id="contact-status-tabs">
+      <button data-contact-status="" class="active">All</button>
+      <button data-contact-status="new">신규</button>
+      <button data-contact-status="read">확인함</button>
+      <button data-contact-status="answered">답변완료</button>
+    </div>
+    <div id="contact-content">
       <div class="empty-state">불러오는 중…</div>
     </div>
   </div>

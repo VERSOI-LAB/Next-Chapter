@@ -848,4 +848,31 @@ router.delete('/travel-agencies/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+router.get('/contact-inquiries', async (req, res) => {
+  const { status } = req.query;
+  let query = supabaseAdmin.from('contact_inquiries').select('*').order('created_at', { ascending: false });
+  if (status) query = query.eq('status', status);
+
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: '문의 목록을 불러오지 못했습니다.' });
+  res.json({ inquiries: data });
+});
+
+router.patch('/contact-inquiries/:id', async (req, res) => {
+  const payload = pickFields(req.body || {}, ['status', 'admin_note']);
+  if (payload.status && !['new', 'read', 'answered'].includes(payload.status)) {
+    return res.status(400).json({ error: '올바르지 않은 상태값입니다.' });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('contact_inquiries')
+    .update(payload)
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ inquiry: data });
+});
+
 module.exports = router;

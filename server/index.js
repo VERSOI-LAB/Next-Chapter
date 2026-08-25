@@ -12,6 +12,7 @@ const photoRoutes = require('./routes/photos');
 const verificationRoutes = require('./routes/verifications');
 const storyRoutes = require('./routes/story');
 const passportRoutes = require('./routes/passport');
+const contactRoutes = require('./routes/contact');
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/api/photos', photoRoutes);
 app.use('/api/verifications', verificationRoutes);
 app.use('/api/story', storyRoutes);
 app.use('/api/passport', passportRoutes);
+app.use('/api/contact', contactRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 

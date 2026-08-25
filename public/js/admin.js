@@ -1918,6 +1918,81 @@ let revenueSearchTimer = null;
   });
 });
 
+const CONTACT_STATUS_LABEL = { new: '신규', read: '확인함', answered: '답변완료' };
+let currentContactStatus = '';
+
+async function loadContactInquiries() {
+  const wrap = document.getElementById('contact-content');
+  wrap.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+  try {
+    const query = currentContactStatus ? `?status=${encodeURIComponent(currentContactStatus)}` : '';
+    const { inquiries } = await apiFetch(`/admin/contact-inquiries${query}`);
+
+    if (!inquiries.length) {
+      wrap.innerHTML = '<div class="empty-state">문의 내역이 없습니다.</div>';
+      return;
+    }
+
+    const rows = inquiries.map((inq) => `
+      <tr>
+        <td>${esc(inq.name)}<br><span style="color:var(--muted)">${esc(inq.email)}${inq.phone ? ' · ' + esc(inq.phone) : ''}</span></td>
+        <td style="max-width:320px;white-space:pre-wrap">${esc(inq.message)}</td>
+        <td><span class="badge ${inq.status === 'answered' ? 'approved' : ''}">${CONTACT_STATUS_LABEL[inq.status] || inq.status}</span></td>
+        <td>${new Date(inq.created_at).toLocaleString('ko-KR')}</td>
+        <td>
+          ${inq.status !== 'read' && inq.status !== 'answered' ? `<button type="button" class="link-btn" data-mark-read="${inq.id}">확인함으로 표시</button>` : ''}
+          ${inq.status !== 'answered' ? `<button type="button" class="link-btn" data-mark-answered="${inq.id}">답변완료로 표시</button>` : ''}
+          <a class="link-btn" href="mailto:${esc(inq.email)}?subject=${encodeURIComponent('[NEXT CHAPTER] 문의 답변')}" style="text-decoration:none;display:inline-block;margin-top:6px">✉ 답장하기</a>
+        </td>
+      </tr>`).join('');
+
+    wrap.innerHTML = `
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>문의자</th><th>내용</th><th>상태</th><th>접수일시</th><th>Actions</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+
+    wrap.querySelectorAll('[data-mark-read]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/contact-inquiries/${btn.dataset.markRead}`, { method: 'PATCH', body: { status: 'read' } });
+          await loadContactInquiries();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
+    wrap.querySelectorAll('[data-mark-answered]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/contact-inquiries/${btn.dataset.markAnswered}`, { method: 'PATCH', body: { status: 'answered' } });
+          await loadContactInquiries();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state">${esc(err.message)}</div>`;
+  }
+}
+
+document.getElementById('contact-status-tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-contact-status]');
+  if (!btn) return;
+  document.querySelectorAll('#contact-status-tabs button').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentContactStatus = btn.dataset.contactStatus;
+  loadContactInquiries();
+});
+
 function permissionFormHtml() {
   return `
     <div class="itin-editor-panel" id="permission-form-panel">
@@ -2036,14 +2111,16 @@ const adminPanels = {
   matching: document.getElementById('panel-matching'),
   bookings: document.getElementById('panel-bookings'),
   revenue: document.getElementById('panel-revenue'),
+  contact: document.getElementById('panel-contact'),
   permissions: document.getElementById('panel-permissions'),
 };
-const ADMIN_TITLE_LABEL = { applications: 'Applications', journeys: 'Journeys', story: 'Story', members: 'Members', matching: 'Matching', bookings: 'Bookings', revenue: 'Revenue', permissions: 'Permissions' };
+const ADMIN_TITLE_LABEL = { applications: 'Applications', journeys: 'Journeys', story: 'Story', members: 'Members', matching: 'Matching', bookings: 'Bookings', revenue: 'Revenue', contact: 'Contact', permissions: 'Permissions' };
 
 let membersLoaded = false;
 let matchingLoaded = false;
 let bookingsLoaded = false;
 let revenueLoaded = false;
+let contactLoaded = false;
 let permissionsLoaded = false;
 
 (async function initRole() {
@@ -2088,6 +2165,10 @@ adminSectionTabs.forEach((btn) => {
     if (btn.dataset.section === 'revenue' && !revenueLoaded) {
       revenueLoaded = true;
       loadRevenue();
+    }
+    if (btn.dataset.section === 'contact' && !contactLoaded) {
+      contactLoaded = true;
+      loadContactInquiries();
     }
     if (btn.dataset.section === 'permissions' && !permissionsLoaded) {
       permissionsLoaded = true;
