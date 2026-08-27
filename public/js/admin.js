@@ -98,11 +98,15 @@ async function loadApplications() {
            </div>`
         : `<div class="admin-actions"><button data-id="${app.id}" data-status="pending">Reset</button></div>`;
 
+      const isGuest = !app.user_id;
+      const displayName = p.full_name || app.guest_name || '—';
+      const displayPhone = p.phone || app.guest_phone || '—';
+
       return `
         <tr>
-          <td>${esc(p.full_name || '—')}<br><span style="color:var(--muted)">${genderLabel}${p.birth_year ? ' · ' + esc(p.birth_year) : ''}</span></td>
-          <td>${esc(p.phone || '—')}</td>
-          <td><span class="badge ${p.verification_status}">${esc(p.verification_status)}</span></td>
+          <td>${esc(displayName)}${isGuest ? ' <span class="badge">비회원</span>' : ''}<br><span style="color:var(--muted)">${genderLabel}${p.birth_year ? ' · ' + esc(p.birth_year) : ''}${isGuest && app.guest_email ? esc(app.guest_email) : ''}</span></td>
+          <td>${esc(displayPhone)}</td>
+          <td>${isGuest ? '<span class="badge">비회원</span>' : `<span class="badge ${p.verification_status}">${esc(p.verification_status)}</span>`}</td>
           <td>${esc(j.title || '—')}</td>
           <td><span class="badge ${app.status}">${STATUS_LABEL[app.status] || app.status}</span></td>
           <td>${new Date(app.created_at).toLocaleDateString('ko-KR')}</td>
