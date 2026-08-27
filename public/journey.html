@@ -55,6 +55,24 @@
     <div id="eligibility-notice" style="display:none;margin-bottom:24px;padding:16px;border:1px solid var(--line);font-size:13px;line-height:1.8"></div>
 
     <form id="apply-form">
+      <div id="guest-fields" style="display:none">
+        <p class="lead" style="font-size:14px;margin-bottom:16px">회원가입 없이 신청할 수 있습니다. 연락처를 입력해주세요. (이미 회원이신가요? <a href="login.html" id="guest-login-link">로그인</a>)</p>
+        <div class="field-row">
+          <div class="field">
+            <label for="guest-name">이름</label>
+            <input type="text" id="guest-name" placeholder="홍길동">
+          </div>
+          <div class="field">
+            <label for="guest-phone">연락처</label>
+            <input type="tel" id="guest-phone" placeholder="010-0000-0000">
+          </div>
+        </div>
+        <div class="field">
+          <label for="guest-email">이메일</label>
+          <input type="email" id="guest-email" placeholder="you@example.com">
+        </div>
+      </div>
+
       <div class="field">
         <label for="message">지원 메시지 (선택)</label>
         <textarea id="message" name="message" placeholder="간단한 자기소개나 신청 사유를 남겨주세요"></textarea>

@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>신청 확인 — NEXT CHAPTER</title>
+<title>결제 실패 — NEXT CHAPTER</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/app.css">
-<script src="https://js.tosspayments.com/v2/standard"></script>
 </head>
 <body>
 
@@ -32,18 +31,12 @@
   <button class="menu-btn" aria-label="Menu">☰</button>
 </header>
 
-<main class="section" style="padding-top:150px;max-width:640px" id="payment-root">
-  <div class="eyebrow">신청 확인</div>
-  <h1 class="display" style="font-size:clamp(26px,4vw,40px)">신청 내용을<br>확인해주세요.</h1>
-  <p class="lead" style="margin-bottom:36px">결제금액과 여행 정보, 계약 내용을 확인한 뒤 결제를 진행해주세요.</p>
-
-  <div id="payment-content">
-    <div class="empty-state">불러오는 중…</div>
-  </div>
+<main class="section" style="padding-top:150px;max-width:640px" id="result-root">
+  <div class="empty-state">불러오는 중…</div>
 </main>
 
 <script src="js/api.js"></script>
 <script src="js/main.js"></script>
-<script src="js/payment.js"></script>
+<script src="js/payment-fail.js"></script>
 </body>
 </html>

@@ -13,6 +13,8 @@ const verificationRoutes = require('./routes/verifications');
 const storyRoutes = require('./routes/story');
 const passportRoutes = require('./routes/passport');
 const contactRoutes = require('./routes/contact');
+const paymentRoutes = require('./routes/payments');
+const configRoutes = require('./routes/config');
 
 const app = express();
 
@@ -35,6 +37,8 @@ app.use('/api/verifications', verificationRoutes);
 app.use('/api/story', storyRoutes);
 app.use('/api/passport', passportRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/config', configRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 

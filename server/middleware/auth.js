@@ -13,6 +13,24 @@ async function requireAuth(req, res, next) {
   next();
 }
 
+// Allows guests through with req.user = null instead of rejecting.
+// Temporary: used to open up guest checkout for PG (Toss Payments) merchant
+// review. Remove the guest branches in applications.js/passport.js and
+// switch these routes back to requireAuth once review is complete.
+async function optionalAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  req.user = (!error && data?.user) ? data.user : null;
+  if (req.user) req.token = token;
+  next();
+}
+
 async function requireAdmin(req, res, next) {
   const { data: profile, error } = await supabaseAdmin
     .from('profiles')
@@ -40,4 +58,4 @@ async function requireSuperAdmin(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireAdmin, requireSuperAdmin };
+module.exports = { requireAuth, optionalAuth, requireAdmin, requireSuperAdmin };

@@ -121,11 +121,64 @@ function contractHtml(application) {
   `;
 }
 
-async function load() {
-  if (!getSession()) {
-    window.location.href = `login.html?next=payment.html?application=${encodeURIComponent(applicationId || '')}`;
+let tossWidgets = null;
+
+async function initTossWidget(application) {
+  const j = application.journey || {};
+  const amount = Number(j.price);
+  const payBtn = document.getElementById('toss-pay-btn');
+  const tossMsg = document.getElementById('toss-msg');
+  if (!amount) {
+    document.getElementById('toss-widget-area').innerHTML = '<div class="empty-state">결제금액이 아직 확정되지 않았습니다. 고객센터로 문의해주세요.</div>';
+    payBtn.style.display = 'none';
     return;
   }
+
+  try {
+    const { toss_client_key: clientKey } = await apiFetch('/config');
+    if (!clientKey) throw new Error('결제 설정을 불러오지 못했습니다.');
+
+    const tossPayments = TossPayments(clientKey);
+    tossWidgets = tossPayments.widgets({ customerKey: application.id });
+
+    await tossWidgets.setAmount({ currency: 'KRW', value: amount });
+    await Promise.all([
+      tossWidgets.renderPaymentMethods({ selector: '#toss-payment-method', variantKey: 'DEFAULT' }),
+      tossWidgets.renderAgreement({ selector: '#toss-agreement', variantKey: 'AGREEMENT' }),
+    ]);
+  } catch (err) {
+    tossMsg.textContent = err.message || '결제창을 불러오지 못했습니다.';
+    tossMsg.className = 'form-msg error';
+  }
+
+  payBtn.addEventListener('click', async () => {
+    if (!tossWidgets) return;
+    tossMsg.textContent = '';
+    tossMsg.className = 'form-msg';
+    payBtn.disabled = true;
+
+    const orderId = `nc_${application.id.replace(/-/g, '').slice(0, 20)}_${Date.now().toString(36)}`;
+    const p = application.profile || {};
+    try {
+      await tossWidgets.requestPayment({
+        orderId,
+        orderName: j.title || 'NEXT CHAPTER 여행상품',
+        successUrl: `${window.location.origin}/payment-success.html?application=${encodeURIComponent(application.id)}`,
+        failUrl: `${window.location.origin}/payment-fail.html?application=${encodeURIComponent(application.id)}`,
+        customerEmail: application.user_email || application.guest_email || undefined,
+        customerName: p.full_name || application.guest_name || undefined,
+      });
+    } catch (err) {
+      if (err?.code !== 'USER_CANCEL') {
+        tossMsg.textContent = err.message || '결제 요청 중 오류가 발생했습니다.';
+        tossMsg.className = 'form-msg error';
+      }
+      payBtn.disabled = false;
+    }
+  });
+}
+
+async function load() {
   if (!applicationId) {
     root.innerHTML = '<div class="empty-state">잘못된 접근입니다.</div>';
     return;
@@ -177,6 +230,16 @@ async function load() {
       <div class="form-msg" id="ack-msg"></div>
     `;
 
+    const paymentHtml = `
+      <p class="section-label" style="margin:32px 0 12px">결제하기</p>
+      <div id="toss-widget-area">
+        <div id="toss-payment-method"></div>
+        <div id="toss-agreement"></div>
+      </div>
+      <button type="button" class="btn" id="toss-pay-btn" style="margin-top:16px">${formatPrice(j.price)} 결제하기</button>
+      <div class="form-msg" id="toss-msg"></div>
+    `;
+
     root.innerHTML = `
       <p class="section-label" style="margin-bottom:12px">여행 정보</p>
       <ul class="journey-meta-list">
@@ -198,10 +261,7 @@ async function load() {
       ${contractHtml(application)}
 
       <div id="ack-section">${ackHtml}</div>
-      <div id="done-section" style="display:none">
-        <div class="form-msg success" style="margin-top:32px">신청이 접수되었습니다. 검증 및 선발 절차 안내 후 결제 방법을 별도로 안내드립니다.</div>
-        <a href="mypage.html" class="btn" style="display:inline-block;margin-top:20px;text-decoration:none">마이페이지에서 신청 현황 확인하기</a>
-      </div>
+      <div id="payment-section" style="display:none">${paymentHtml}</div>
     `;
 
     const ackBtn = document.getElementById('ack-btn');
@@ -217,7 +277,8 @@ async function load() {
       try {
         await apiFetch(`/applications/${applicationId}/ack`, { method: 'POST' });
         document.getElementById('ack-section').style.display = 'none';
-        document.getElementById('done-section').style.display = '';
+        document.getElementById('payment-section').style.display = '';
+        await initTossWidget(application);
       } catch (err) {
         ackMsg.textContent = err.message;
         ackMsg.className = 'form-msg error';

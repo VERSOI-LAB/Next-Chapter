@@ -1,25 +1,27 @@
 const express = require('express');
 const multer = require('multer');
 const { supabaseAdmin } = require('../lib/supabase');
-const { requireAuth } = require('../middleware/auth');
+const { optionalAuth } = require('../middleware/auth');
 const { uploadFile, getSignedUrl } = require('../lib/storage');
 
 const router = express.Router();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
 const BUCKET = 'passport-docs';
 
+// NOTE: optionalAuth here is a temporary opening for Toss Payments merchant
+// review (see applications.js). Switch back to requireAuth once review ends.
 async function loadOwnedApplication(applicationId, userId) {
-  const { data } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('applications')
     .select('id, user_id, journey:journeys(type)')
-    .eq('id', applicationId)
-    .eq('user_id', userId)
-    .single();
+    .eq('id', applicationId);
+  query = userId ? query.eq('user_id', userId) : query.is('user_id', null);
+  const { data } = await query.single();
   return data;
 }
 
-router.get('/:applicationId', requireAuth, async (req, res) => {
-  const application = await loadOwnedApplication(req.params.applicationId, req.user.id);
+router.get('/:applicationId', optionalAuth, async (req, res) => {
+  const application = await loadOwnedApplication(req.params.applicationId, req.user ? req.user.id : null);
   if (!application) return res.status(404).json({ error: '신청 내역을 찾을 수 없습니다.' });
 
   const { data: info, error } = await supabaseAdmin
@@ -34,8 +36,8 @@ router.get('/:applicationId', requireAuth, async (req, res) => {
   res.json({ passport: { ...info, image_url } });
 });
 
-router.post('/:applicationId', requireAuth, upload.single('passport_image'), async (req, res) => {
-  const application = await loadOwnedApplication(req.params.applicationId, req.user.id);
+router.post('/:applicationId', optionalAuth, upload.single('passport_image'), async (req, res) => {
+  const application = await loadOwnedApplication(req.params.applicationId, req.user ? req.user.id : null);
   if (!application) return res.status(404).json({ error: '신청 내역을 찾을 수 없습니다.' });
 
   const { full_name_kr: fullNameKr, full_name_en: fullNameEn, passport_number: passportNumber, passport_expiry: passportExpiry } = req.body || {};
@@ -48,7 +50,7 @@ router.post('/:applicationId', requireAuth, upload.single('passport_image'), asy
 
   const payload = {
     application_id: req.params.applicationId,
-    user_id: req.user.id,
+    user_id: req.user ? req.user.id : null,
     full_name_kr: fullNameKr.trim(),
     full_name_en: fullNameEn.trim().toUpperCase(),
     passport_number: passportNumber.trim().toUpperCase(),
@@ -60,7 +62,7 @@ router.post('/:applicationId', requireAuth, upload.single('passport_image'), asy
       return res.status(400).json({ error: '이미지 또는 PDF 파일만 업로드할 수 있습니다.' });
     }
     const ext = (req.file.originalname.split('.').pop() || 'jpg').toLowerCase();
-    const path = `${req.user.id}/${req.params.applicationId}-${Date.now()}.${ext}`;
+    const path = `${req.user ? req.user.id : 'guest'}/${req.params.applicationId}-${Date.now()}.${ext}`;
     try {
       await uploadFile(BUCKET, path, req.file);
     } catch (err) {

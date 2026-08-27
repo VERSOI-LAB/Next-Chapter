@@ -68,6 +68,12 @@ async function loadJourney() {
       applyBtn.textContent = '대기 신청하기';
     }
 
+    const guestFields = document.getElementById('guest-fields');
+    if (!getSession()) {
+      guestFields.style.display = '';
+      document.getElementById('guest-login-link').href = `login.html?next=journey.html?slug=${encodeURIComponent(slug)}`;
+    }
+
     await checkEligibility();
   } catch (err) {
     document.getElementById('journey-root').innerHTML = `<div class="empty-state">${err.message}</div>`;
@@ -127,16 +133,29 @@ function consentsChecked() {
   return document.getElementById('consent-member-info').checked && document.getElementById('consent-third-party').checked;
 }
 
+function guestFieldsValid() {
+  if (getSession()) return true;
+  const name = document.getElementById('guest-name').value.trim();
+  const phone = document.getElementById('guest-phone').value.trim();
+  const email = document.getElementById('guest-email').value.trim();
+  return Boolean(name && phone && email);
+}
+
 async function createApplication() {
-  const { application } = await apiFetch('/applications', {
-    method: 'POST',
-    body: {
-      journey_id: currentJourney.id,
-      message: document.getElementById('message').value.trim() || null,
-      agree_member_info_share: document.getElementById('consent-member-info').checked,
-      agree_travel_third_party: document.getElementById('consent-third-party').checked,
-    },
-  });
+  const body = {
+    journey_id: currentJourney.id,
+    message: document.getElementById('message').value.trim() || null,
+    agree_member_info_share: document.getElementById('consent-member-info').checked,
+    agree_travel_third_party: document.getElementById('consent-third-party').checked,
+  };
+
+  if (!getSession()) {
+    body.guest_name = document.getElementById('guest-name').value.trim();
+    body.guest_phone = document.getElementById('guest-phone').value.trim();
+    body.guest_email = document.getElementById('guest-email').value.trim();
+  }
+
+  const { application } = await apiFetch('/applications', { method: 'POST', body });
   return application;
 }
 
@@ -146,8 +165,9 @@ applyBtn.addEventListener('click', async () => {
   applyMsg.textContent = '';
   applyMsg.className = 'form-msg';
 
-  if (!getSession()) {
-    window.location.href = `login.html?next=journey.html?slug=${encodeURIComponent(slug)}`;
+  if (!guestFieldsValid()) {
+    applyMsg.textContent = '이름, 연락처, 이메일을 입력해주세요.';
+    applyMsg.className = 'form-msg error';
     return;
   }
 
@@ -179,6 +199,12 @@ applyBtn.addEventListener('click', async () => {
 applySaveBtn.addEventListener('click', async () => {
   applyMsg.textContent = '';
   applyMsg.className = 'form-msg';
+
+  if (!guestFieldsValid()) {
+    applyMsg.textContent = '이름, 연락처, 이메일을 입력해주세요.';
+    applyMsg.className = 'form-msg error';
+    return;
+  }
 
   if (!consentsChecked()) {
     applyMsg.textContent = '필수 동의 항목을 모두 체크해주세요.';
